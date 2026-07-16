@@ -1,5 +1,5 @@
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset, SidebarFooter, SidebarSeparator, SidebarProvider } from "@/components/ui/sidebar";
-import { CalendarIcon, HomeIcon, ListIcon, DollarSignIcon, BookOpenIcon, SettingsIcon, HelpCircleIcon, TimerIcon } from "lucide-react";
+import { CalendarIcon, HomeIcon, ListIcon, DollarSignIcon, BookOpenIcon, SettingsIcon, TimerIcon } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 
@@ -12,7 +12,7 @@ const navItems = [
   { name: "Notes", icon: BookOpenIcon, path: "/notes" },
   { name: "Pomodoro", icon: TimerIcon, path: "/pomodoro" },
   { name: "Settings", icon: SettingsIcon, path: "/settings" },
-  { name: "Help", icon: HelpCircleIcon, path: "/help" },
+  // Help item removed
 ];
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
