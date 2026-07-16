@@ -1,10 +1,3 @@
-/*
- * Tailwind CSS custom colors for the Life Planner Assistant dark theme.
- * Primary accent: #60a5fa (blue)
- * Secondary accent: #2dd4bf (teal)
- * Background: near‑black (hsl(210, 30%, 4%))
- */
-
 export default {
   darkMode: ["class"],
   content: [
@@ -41,9 +34,10 @@ export default {
           "primary-foreground": "#ffffff",
           accent: "#2dd4bf",
           "accent-foreground": "#ffffff",
-          border: "hsl(210, 20%, 12%)",
+          border: "hsl(210, 30%, 12%)",   // <-- added
           ring: "#60a5fa",
         },
+        border: "hsl(var(--border))",   // <-- added
       },
       borderRadius: {
         lg: "0.75rem",
