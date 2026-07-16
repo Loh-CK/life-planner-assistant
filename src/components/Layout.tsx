@@ -2,6 +2,7 @@ import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, S
 import { CalendarIcon, HomeIcon, ListIcon, DollarSignIcon, BookOpenIcon, SettingsIcon, TimerIcon } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
+import AIAdvisorPanel from "@/components/AIAdvisorPanel";
 
 const navItems = [
   { name: "Dashboard", icon: HomeIcon, path: "/dashboard" },
@@ -58,8 +59,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </SidebarInset>
         <div className="w-64 bg-sidebar p-4 hidden md:block">
-          <h3 className="text-sm font-medium mb-2">AI Advisor</h3>
-          <div className="h-full bg-card rounded-md p-4">Placeholder</div>
+          <AIAdvisorPanel />
         </div>
       </SidebarProvider>
     </div>
