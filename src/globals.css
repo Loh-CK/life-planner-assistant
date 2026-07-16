@@ -4,13 +4,13 @@
 
 @layer base {
   :root {
-    --background: 210 30% 4%;
-    --foreground: 210 40% 98%;
+    --background: hsl(210, 30%, 4%);
+    --foreground: hsl(210, 40%, 98%);
 
-    --card: 210 30% 6%;
+    --card: hsl(210, 30%, 6%);
     --card-foreground: #ffffff;
 
-    --popover: 210 30% 6%;
+    --popover: hsl(210, 30%, 6%);
     --popover-foreground: #ffffff;
 
     --primary: #60a5fa;
@@ -19,7 +19,7 @@
     --secondary: #2dd4bf;
     --secondary-foreground: #ffffff;
 
-    --muted: 210 30% 12%;
+    --muted: hsl(210, 30%, 12%);
     --muted-foreground: #a1a1aa;
 
     --accent: #2dd4bf;
@@ -28,30 +28,30 @@
     --destructive: #f87171;
     --destructive-foreground: #ffffff;
 
-    --border: 210 30% 12%;
-    --input: 210 30% 12%;
+    --border: hsl(210, 30%, 12%);
+    --input: hsl(210, 30%, 12%);
     --ring: #60a5fa;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 210 30% 6%;
+    --sidebar-background: hsl(210, 30%, 6%);
     --sidebar-foreground: #ffffff;
     --sidebar-primary: #60a5fa;
     --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: #2dd4bf;
     --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: 210 30% 12%;
+    --sidebar-border: hsl(210, 30%, 12%);
     --sidebar-ring: #60a5fa;
   }
 
   .dark {
-    --background: 210 30% 4%;
-    --foreground: 210 40% 98%;
+    --background: hsl(210, 30%, 4%);
+    --foreground: hsl(210, 40%, 98%);
 
-    --card: 210 30% 6%;
+    --card: hsl(210, 30%, 6%);
     --card-foreground: #ffffff;
 
-    --popover: 210 30% 6%;
+    --popover: hsl(210, 30%, 6%);
     --popover-foreground: #ffffff;
 
     --primary: #60a5fa;
@@ -60,7 +60,7 @@
     --secondary: #2dd4bf;
     --secondary-foreground: #ffffff;
 
-    --muted: 210 30% 12%;
+    --muted: hsl(210, 30%, 12%);
     --muted-foreground: #a1a1aa;
 
     --accent: #2dd4bf;
@@ -69,17 +69,17 @@
     --destructive: #f87171;
     --destructive-foreground: #ffffff;
 
-    --border: 210 30% 12%;
-    --input: 210 30% 12%;
+    --border: hsl(210, 30%, 12%);
+    --input: hsl(210, 30%, 12%);
     --ring: #60a5fa;
 
-    --sidebar-background: 210 30% 6%;
+    --sidebar-background: hsl(210, 30%, 6%);
     --sidebar-foreground: #ffffff;
     --sidebar-primary: #60a5fa;
     --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: #2dd4bf;
     --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: 210 30% 12%;
+    --sidebar-border: hsl(210, 30%, 12%);
     --sidebar-ring: #60a5fa;
   }
 }
