@@ -57,4 +57,30 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Select dropdown styling */
+  .select-content {
+    @apply bg-card border border-border rounded-md shadow-md z-50;
+  }
+  .select-item {
+    @apply px-4 py-2 text-sm cursor-pointer;
+  }
+  .select-item:hover {
+    @apply bg-muted;
+  }
+
+  /* Calendar day states */
+  .calendar-day {
+    @apply p-2 border rounded cursor-pointer hover:bg-accent hover:text-accent-foreground;
+  }
+  .calendar-day.prev-next {
+    @apply text-muted-foreground bg-muted;
+  }
+  .calendar-day.today {
+    @apply relative;
+  }
+  .calendar-day.today::before {
+    content: "";
+    @apply absolute inset-0 rounded-full border-2 border-primary;
+  }
 }

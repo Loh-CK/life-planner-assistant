@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from "lucide-react";
 
 interface Event {
   id: string;
@@ -50,15 +50,20 @@ const Calendar = () => {
   // Adjust to Monday=0
   const startWeekday = (firstDay.getDay() + 6) % 7; // 0=Mon
 
+  // Build weeks with previous/next month days
   const weeks: (number | null)[][] = [];
   let day = 1;
+  let prevMonthDays = new Date(year, month, 0).getDate();
   for (let w = 0; w < 6; w++) {
     const week: (number | null)[] = [];
     for (let d = 0; d < 7; d++) {
       if (w === 0 && d < startWeekday) {
-        week.push(null);
+        // previous month day
+        week.push(prevMonthDays - (startWeekday - d - 1));
       } else if (day > daysInMonth) {
-        week.push(null);
+        // next month day
+        week.push(day - daysInMonth);
+        day++;
       } else {
         week.push(day);
         day++;
@@ -82,9 +87,18 @@ const Calendar = () => {
     setCurrentMonth(new Date(year, month + 1, 1));
   };
 
-  const handleDayClick = (dayNum: number | null) => {
+  const handleToday = () => {
+    setCurrentMonth(new Date());
+  };
+
+  const handleDayClick = (dayNum: number | null, isCurrentMonth: boolean) => {
     if (!dayNum) return;
     const dateStr = formatDate(year, month, dayNum);
+    if (!isCurrentMonth) {
+      // If clicking a day from adjacent month, adjust month
+      const target = new Date(year, month, dayNum);
+      setCurrentMonth(target);
+    }
     setSelectedDate(dateStr);
   };
 
@@ -108,6 +122,8 @@ const Calendar = () => {
     setForm({ title: "", date: "", start: "", end: "", category: "", location: "" });
   };
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
   return (
     <div className="flex h-full">
       {/* Calendar grid */}
@@ -116,9 +132,14 @@ const Calendar = () => {
           <Button variant="ghost" size="icon" onClick={handlePrev}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h2 className="text-xl font-semibold">
-            {currentMonth.toLocaleString("default", { month: "long" })} {year}
-          </h2>
+          <div className="flex items-center space-x-2">
+            <h2 className="text-xl font-semibold">
+              {currentMonth.toLocaleString("default", { month: "long" })} {year}
+            </h2>
+            <Button variant="outline" size="sm" onClick={handleToday}>
+              <CalendarIcon className="h-4 w-4 mr-1" /> Today
+            </Button>
+          </div>
           <Button variant="ghost" size="icon" onClick={handleNext}>
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -132,13 +153,15 @@ const Calendar = () => {
           {weeks.flat().map((dayNum, idx) => {
             const dateStr = dayNum ? formatDate(year, month, dayNum) : "";
             const dayEvents = dayNum ? eventsForDate(dateStr) : [];
+            const isCurrentMonth = dayNum !== null && dayNum <= daysInMonth && dayNum >= 1;
+            const isToday = dateStr === todayStr;
             return (
               <div
                 key={idx}
                 className={`p-2 border rounded cursor-pointer hover:bg-accent hover:text-accent-foreground ${
-                  dayNum ? "" : "bg-gray-200"
-                }`}
-                onClick={() => handleDayClick(dayNum)}
+                  isCurrentMonth ? "calendar-day" : "calendar-day prev-next"
+                } ${isToday ? "today" : ""}`}
+                onClick={() => handleDayClick(dayNum, isCurrentMonth)}
               >
                 {dayNum && <div className="text-right font-medium">{dayNum}</div>}
                 {dayNum && dayEvents.length > 0 && (
