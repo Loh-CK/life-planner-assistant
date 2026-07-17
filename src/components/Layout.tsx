@@ -22,7 +22,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen w-full overflow-x-hidden">
       <SidebarProvider defaultOpen={open} onOpenChange={setOpen}>
         <Sidebar>
           <SidebarHeader>
@@ -47,7 +47,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
-        <SidebarInset>
+        <SidebarInset className="flex-1">
           <div className="flex flex-col h-full">
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center">
@@ -58,7 +58,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             <div className="flex-1 overflow-auto p-4">{children}</div>
           </div>
         </SidebarInset>
-        <div className="w-64 bg-sidebar p-4 hidden md:block">
+        <div className="w-80 bg-sidebar p-4 hidden md:block">
           <AIAdvisorPanel />
         </div>
       </SidebarProvider>
