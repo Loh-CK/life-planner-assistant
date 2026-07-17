@@ -199,7 +199,7 @@ const AIAdvisorPanel = () => {
               <SelectItem value="Full Planner">Full Planner</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => handleQuickPrompt("Plan my day")}>
               Plan my day
             </Button>
