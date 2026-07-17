@@ -192,9 +192,7 @@ const AIAdvisorPanel = () => {
             <SelectTrigger>
               <SelectValue placeholder="Select scope" />
             </SelectTrigger>
-            <SelectContent
-              className="bg-background text-foreground shadow-md border rounded z-50"
-            >
+            <SelectContent>
               <SelectItem value="Today">Today</SelectItem>
               <SelectItem value="Tasks">Tasks</SelectItem>
               <SelectItem value="Finance">Finance</SelectItem>
