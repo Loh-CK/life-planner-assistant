@@ -9,35 +9,41 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "hsl(210, 30%, 4%)",
-        foreground: "hsl(210, 40%, 98%)",
+        background: "#14141f",
+        foreground: "#f5f5f5",
         primary: {
-          DEFAULT: "#60a5fa",
+          DEFAULT: "#ff8a65",
           foreground: "#ffffff",
         },
         secondary: {
-          DEFAULT: "#2dd4bf",
+          DEFAULT: "#a78bfa",
           foreground: "#ffffff",
         },
         card: {
-          DEFAULT: "hsl(210, 30%, 6%)",
-          foreground: "#ffffff",
+          DEFAULT: "#1e1e2e",
+          foreground: "#f5f5f5",
         },
         accent: {
-          DEFAULT: "#2dd4bf",
+          DEFAULT: "#a78bfa",
           foreground: "#ffffff",
         },
         sidebar: {
-          DEFAULT: "hsl(210, 30%, 6%)",
-          foreground: "#ffffff",
-          primary: "#60a5fa",
+          DEFAULT: "#1e1e2e",
+          foreground: "#f5f5f5",
+          primary: "#ff8a65",
           "primary-foreground": "#ffffff",
-          accent: "#2dd4bf",
+          accent: "#a78bfa",
           "accent-foreground": "#ffffff",
-          border: "hsl(210, 30%, 12%)",   // <-- added
-          ring: "#60a5fa",
+          border: "#ff8a65",
+          ring: "#ff8a65",
         },
-        border: "hsl(var(--border))",   // <-- added
+        border: "#ff8a65",
+        input: "#2a2a3a",
+        ring: "#ff8a65",
+        muted: "#2a2a3a",
+        "muted-foreground": "#a1a1aa",
+        destructive: "#ff8a65",
+        "destructive-foreground": "#ffffff",
       },
       borderRadius: {
         lg: "0.75rem",
