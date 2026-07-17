@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Calendar } from "lucide-react";
 
 interface Event {
   id: string;
@@ -82,6 +82,10 @@ const Calendar = () => {
     setCurrentMonth(new Date(year, month + 1, 1));
   };
 
+  const handleToday = () => {
+    setCurrentMonth(new Date());
+  };
+
   const handleDayClick = (dayNum: number | null) => {
     if (!dayNum) return;
     const dateStr = formatDate(year, month, dayNum);
@@ -108,6 +112,8 @@ const Calendar = () => {
     setForm({ title: "", date: "", start: "", end: "", category: "", location: "" });
   };
 
+  const today = new Date().toISOString().split("T")[0];
+
   return (
     <div className="flex h-full">
       {/* Calendar grid */}
@@ -116,9 +122,14 @@ const Calendar = () => {
           <Button variant="ghost" size="icon" onClick={handlePrev}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h2 className="text-xl font-semibold">
-            {currentMonth.toLocaleString("default", { month: "long" })} {year}
-          </h2>
+          <div className="flex items-center space-x-2">
+            <h2 className="text-xl font-semibold">
+              {currentMonth.toLocaleString("default", { month: "long" })} {year}
+            </h2>
+            <Button variant="outline" size="sm" onClick={handleToday}>
+              <Calendar className="h-4 w-4 mr-1" /> Today
+            </Button>
+          </div>
           <Button variant="ghost" size="icon" onClick={handleNext}>
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -132,15 +143,27 @@ const Calendar = () => {
           {weeks.flat().map((dayNum, idx) => {
             const dateStr = dayNum ? formatDate(year, month, dayNum) : "";
             const dayEvents = dayNum ? eventsForDate(dateStr) : [];
+            const isToday = dateStr === today;
+            const isCurrentMonth = dayNum !== null;
+            const cellClasses = `p-2 border rounded cursor-pointer hover:bg-accent hover:text-accent-foreground ${
+              dayNum ? "" : "bg-gray-200"
+            }`;
+            const numberClasses = isToday
+              ? "inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground"
+              : isCurrentMonth
+              ? "text-foreground"
+              : "text-muted-foreground";
             return (
               <div
                 key={idx}
-                className={`p-2 border rounded cursor-pointer hover:bg-accent hover:text-accent-foreground ${
-                  dayNum ? "" : "bg-gray-200"
-                }`}
+                className={cellClasses}
                 onClick={() => handleDayClick(dayNum)}
               >
-                {dayNum && <div className="text-right font-medium">{dayNum}</div>}
+                {dayNum && (
+                  <div className={numberClasses}>
+                    {dayNum}
+                  </div>
+                )}
                 {dayNum && dayEvents.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {dayEvents.map((e) => (
