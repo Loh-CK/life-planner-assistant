@@ -91,35 +91,12 @@ const Calendar = () => {
     setCurrentMonth(new Date());
   };
 
-  const handleDayClick = (dayNum: number | null, isCurrentMonth: boolean) => {
-    if (!dayNum) return;
-    const dateStr = formatDate(year, month, dayNum);
+  const handleDayClick = (date: Date, isCurrentMonth: boolean) => {
+    const dateStr = formatDate(date.getFullYear(), date.getMonth(), date.getDate());
     if (!isCurrentMonth) {
-      // If clicking a day from adjacent month, adjust month
-      const target = new Date(year, month, dayNum);
-      setCurrentMonth(target);
+      setCurrentMonth(date);
     }
     setSelectedDate(dateStr);
-  };
-
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newEvent: Event = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      title: form.title,
-      date: form.date,
-      start: form.start,
-      end: form.end,
-      category: form.category,
-      location: form.location,
-    };
-    setEvents([...events, newEvent]);
-    setShowModal(false);
-    setForm({ title: "", date: "", start: "", end: "", category: "", location: "" });
   };
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -145,32 +122,35 @@ const Calendar = () => {
           </Button>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2">
-          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d)=>(
-            <div key={d} className="font-medium">{d}</div>
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+            <div key={d} className="font-medium">
+              {d}
+            </div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
           {weeks.flat().map((dayNum, idx) => {
-            const dateStr = dayNum ? formatDate(year, month, dayNum) : "";
-            const dayEvents = dayNum ? eventsForDate(dateStr) : [];
-            const isCurrentMonth = dayNum !== null && dayNum <= daysInMonth && dayNum >= 1;
+            const weekIndex = Math.floor(idx / 7);
+            const dayIndex = idx % 7;
+            const offset = weekIndex * 7 + dayIndex - startWeekday;
+            const date = new Date(year, month, 1 + offset);
+            const dateStr = formatDate(date.getFullYear(), date.getMonth(), date.getDate());
+            const isCurrentMonth = date.getMonth() === month;
             const isToday = dateStr === todayStr;
+            const dayEvents = eventsForDate(dateStr);
             return (
               <div
                 key={idx}
                 className={`p-2 border rounded cursor-pointer hover:bg-accent hover:text-accent-foreground ${
                   isCurrentMonth ? "calendar-day" : "calendar-day prev-next"
                 } ${isToday ? "today" : ""}`}
-                onClick={() => handleDayClick(dayNum, isCurrentMonth)}
+                onClick={() => handleDayClick(date, isCurrentMonth)}
               >
-                {dayNum && <div className="text-right font-medium">{dayNum}</div>}
-                {dayNum && dayEvents.length > 0 && (
+                <div className="text-right font-medium">{date.getDate()}</div>
+                {dayEvents.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {dayEvents.map((e) => (
-                      <span
-                        key={e.id}
-                        className="w-2 h-2 rounded-full bg-primary"
-                      />
+                      <span key={e.id} className="w-2 h-2 rounded-full bg-primary" />
                     ))}
                   </div>
                 )}
@@ -213,48 +193,14 @@ const Calendar = () => {
               <DialogDescription>Fill in the details below.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <Input
-                name="title"
-                placeholder="Title"
-                value={form.title}
-                onChange={handleFormChange}
-                required
-              />
-              <Input
-                type="date"
-                name="date"
-                value={form.date}
-                onChange={handleFormChange}
-                required
-              />
+              <Input name="title" placeholder="Title" value={form.title} onChange={handleFormChange} required />
+              <Input type="date" name="date" value={form.date} onChange={handleFormChange} required />
               <div className="grid grid-cols-2 gap-2">
-                <Input
-                  type="time"
-                  name="start"
-                  value={form.start}
-                  onChange={handleFormChange}
-                  required
-                />
-                <Input
-                  type="time"
-                  name="end"
-                  value={form.end}
-                  onChange={handleFormChange}
-                  required
-                />
+                <Input type="time" name="start" value={form.start} onChange={handleFormChange} required />
+                <Input type="time" name="end" value={form.end} onChange={handleFormChange} required />
               </div>
-              <Input
-                name="category"
-                placeholder="Category"
-                value={form.category}
-                onChange={handleFormChange}
-              />
-              <Input
-                name="location"
-                placeholder="Location"
-                value={form.location}
-                onChange={handleFormChange}
-              />
+              <Input name="category" placeholder="Category" value={form.category} onChange={handleFormChange} />
+              <Input name="location" placeholder="Location" value={form.location} onChange={handleFormChange} />
               <DialogFooter>
                 <Button type="submit">Save</Button>
               </DialogFooter>
