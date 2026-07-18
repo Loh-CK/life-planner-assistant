@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { showSuccess, showError } from "@/utils/toast";
 import { Plus, Trash2, Upload, Download } from "lucide-react";
+import { ContextScopeSelect, ContextScope } from "@/components/ContextScopeSelect";
 
 interface SettingsData {
   ollama: {
@@ -38,6 +41,7 @@ const DEFAULT_SETTINGS: SettingsData = {
 const Settings = () => {
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [testStatus, setTestStatus] = useState<string | null>(null);
+  const [contextScope, setContextScope] = useState<ContextScope>("Today");
 
   // Load settings from localStorage
   useEffect(() => {

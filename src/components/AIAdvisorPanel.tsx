@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -5,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Upload, Download, Settings, X } from "lucide-react";
+import { ContextScopeSelect, ContextScope } from "@/components/ContextScopeSelect";
 
 interface SettingsData {
   ollama: {
@@ -188,17 +191,7 @@ const AIAdvisorPanel = () => {
       <CardContent className="flex-1 flex flex-col p-0">
         <div className="p-4 flex flex-col space-y-2">
           <Label>Context Scope</Label>
-          <Select value={scope} onValueChange={setScope}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select scope" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Today">Today</SelectItem>
-              <SelectItem value="Tasks">Tasks</SelectItem>
-              <SelectItem value="Finance">Finance</SelectItem>
-              <SelectItem value="Full Planner">Full Planner</SelectItem>
-            </SelectContent>
-          </Select>
+          <ContextScopeSelect value={scope as ContextScope} onValueChange={setScope} />
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => handleQuickPrompt("Plan my day")}>
               Plan my day
