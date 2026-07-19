@@ -404,6 +404,10 @@ const Calendar = () => {
                         },
                       )}
                       {dayEvents.map((e) => {
+                        // Guard against missing start_time or end_time
+                        if (!e.start_time || !e.end_time) {
+                          return null;
+                        }
                         const [sh, sm] = e.start_time.split(":").map(Number);
                         const [eh, em] = e.end_time.split(":").map(Number);
                         const top = sh * 60 + sm - DAY_START * 60;
