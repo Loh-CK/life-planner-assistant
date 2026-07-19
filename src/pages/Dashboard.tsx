@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { KpiCard } from "@/components/KpiCard";
-import { CalendarIcon, ListCheckIcon, DollarSignIcon, TimerIcon, Calendar, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { CalendarIcon, ListCheckIcon, DollarSignIcon, TimerIcon, Calendar, CheckCircle, AlertCircle, Clock, Plus } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -166,7 +166,7 @@ const Dashboard = () => {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
-              {nextItem.datetime!.toLocaleDateString() === today
+              {nextItem.datetime!.toISOString().split("T")[0] === today
                 ? ` at ${nextItem.datetime!.toLocaleTimeString(undefined, {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -311,7 +311,7 @@ const Dashboard = () => {
       <Dialog>
         <DialogTrigger asChild>
           <Button
-            variant="primary"
+            variant="default"
             className="fixed bottom-8 right-8 rounded-full h-16 w-16 flex items-center justify-center shadow-lg"
           >
             <Plus className="h-8 w-8" />
@@ -347,7 +347,7 @@ const QuickAddForm = ({
       title,
       item_date: date || null,
       start_time: time || null,
-      end_time: time || null,
+      end_time: type === "event" ? (time || null) : null,
       category: "",
       location: "",
       description: "",
