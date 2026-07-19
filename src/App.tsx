@@ -1,26 +1,36 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import { SessionContextProvider } from '@/components/SessionContextProvider';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useSession } from '@/components/SessionContextProvider';
+import { useEffect, useState } from 'react';
+import Index from '@/pages/Index';
+import Login from '@/pages/Login';
+import NotFound from '@/pages/NotFound';
 
-const queryClient = new QueryClient();
+const App = () => {
+  const { session } = useSession();
+  const [loading, setLoading] = useState(true);
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+  useEffect(() => {
+    // Wait for initial session check
+    setLoading(false);
+  }, []);
+
+  if (loading) return null;
+
+  return (
+    <SessionContextProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/*" element={<Index />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/*"
+            element={session ? <Index /> : <Navigate to="/login" replace />}
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </SessionContextProvider>
+  );
+};
 
 export default App;

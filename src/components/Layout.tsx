@@ -1,8 +1,10 @@
-import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset, SidebarFooter, SidebarSeparator, SidebarProvider } from "@/components/ui/sidebar";
-import { CalendarIcon, HomeIcon, ListIcon, DollarSignIcon, BookOpenIcon, SettingsIcon, TimerIcon } from "lucide-react";
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarHeader, SidebarContent, Sidebar, SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { CalendarIcon, HomeIcon, ListIcon, DollarSignIcon, BookOpenIcon, SettingsIcon, TimerIcon, LogOutIcon } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AIAdvisorPanel from "@/components/AIAdvisorPanel";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
   { name: "Dashboard", icon: HomeIcon, path: "/dashboard" },
@@ -13,13 +15,18 @@ const navItems = [
   { name: "Notes", icon: BookOpenIcon, path: "/notes" },
   { name: "Pomodoro", icon: TimerIcon, path: "/pomodoro" },
   { name: "Settings", icon: SettingsIcon, path: "/settings" },
-  // Help item removed
 ];
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(true);
+  const { userId, email } = useCurrentUser();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
 
   return (
     <div className="flex h-screen w-full overflow-x-hidden">
@@ -44,6 +51,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleSignOut}>
+                  <LogOutIcon className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
