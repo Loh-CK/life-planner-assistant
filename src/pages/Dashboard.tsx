@@ -18,6 +18,7 @@ interface Event {
   end_time: string;
   category: string;
   location: string;
+  item_type: "event";
 }
 
 interface Task {
@@ -30,6 +31,7 @@ interface Task {
   description: string;
   completed: boolean;
   priority: "high" | "medium" | "low";
+  item_type: "task";
 }
 
 const Dashboard = () => {
@@ -47,7 +49,7 @@ const Dashboard = () => {
     addItem: addTask,
   } = usePlannerItems("task");
 
-  const { userId, email } = useCurrentUser();
+  const { email } = useCurrentUser();
 
   const [expenses, setExpenses] = useState<any[]>([]);
   const [focusSessions, setFocusSessions] = useState<any[]>([]);
@@ -80,8 +82,6 @@ const Dashboard = () => {
       : hour < 18
       ? "Good afternoon"
       : "Good evening";
-
-  const displayName = email ?? "User";
 
   // Next Up
   const upcoming = [...events, ...tasks]
@@ -150,7 +150,7 @@ const Dashboard = () => {
     <div className="p-4 space-y-6">
       {/* Greeting */}
       <div className="flex items-center space-x-2">
-        <h2 className="text-2xl font-semibold">{`${greeting}, ${displayName}`}</h2>
+        <h2 className="text-2xl font-semibold">{greeting}</h2>
       </div>
 
       {/* Next Up */}
@@ -159,6 +159,14 @@ const Dashboard = () => {
         {nextItem ? (
           <>
             <span className="font-medium">{nextItem.title}</span>
+            <Badge variant="secondary" className="ml-2 flex items-center space-x-1">
+              {nextItem.item_type === "event" ? (
+                <CalendarIcon className="h-3 w-3" />
+              ) : (
+                <CheckCircle className="h-3 w-3" />
+              )}
+              <span>{nextItem.item_type === "event" ? "Event" : "Task"}</span>
+            </Badge>
             <span className="ml-2 text-muted-foreground">
               {nextItem.datetime!.toLocaleDateString(undefined, {
                 month: "short",
