@@ -1,20 +1,29 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, CheckCircle, XCircle, Calendar as CalendarIcon } from "lucide-react";
+import { usePlannerItems } from "@/hooks/usePlannerItems";
 
 interface TimeBlock {
   id: string;
-  date: string; // YYYY-MM-DD
-  start: string; // HH:mm
-  end: string;   // HH:mm
+  item_date: string; // YYYY-MM-DD
+  start_time: string; // HH:mm
+  end_time: string;   // HH:mm
   title: string;
   category: string;
-  notes: string;
-  done: boolean;
+  description: string;
+  completed: boolean;
 }
 
 const DAY_START = 6; // 6am
@@ -42,16 +51,20 @@ const DayPlanner = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load blocks from localStorage
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("lifePlannerTimeBlocks") ?? "{}") as any;
-    setBlocks(stored.blocks ?? []);
-  }, []);
+  const {
+    items: fetchedBlocks,
+    loading,
+    error,
+    addItem,
+    updateItem,
+    deleteItem,
+    toggleCompleted,
+  } = usePlannerItems("timeblock");
 
-  // Persist blocks
+  // Sync local state with fetched blocks
   useEffect(() => {
-    localStorage.setItem("lifePlannerTimeBlocks", JSON.stringify({ blocks }));
-  }, [blocks]);
+    setBlocks(fetchedBlocks);
+  }, [fetchedBlocks]);
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(e.target.value);
@@ -66,13 +79,13 @@ const DayPlanner = () => {
     e.preventDefault();
     const newBlock: TimeBlock = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      date: selectedDate,
-      start: form.start,
-      end: form.end,
+      item_date: selectedDate,
+      start_time: form.start,
+      end_time: form.end,
       title: form.title,
       category: form.category,
-      notes: form.notes,
-      done: false,
+      description: form.notes,
+      completed: false,
     };
     setBlocks((prev) => [...prev, newBlock]);
     setShowModal(false);
@@ -90,35 +103,29 @@ const DayPlanner = () => {
     setForm({
       title: block.title,
       category: block.category,
-      start: block.start,
-      end: block.end,
-      notes: block.notes,
+      start: block.start_time,
+      end: block.end_time,
+      notes: block.description,
     });
     setShowModal(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      title: form.title,
+      description: form.notes,
+      item_date: selectedDate || null,
+      start_time: form.start || null,
+      end_time: form.end || null,
+      category: form.category,
+      completed: editingBlock?.completed ?? false,
+      item_type: "timeblock",
+    };
     if (editingBlock) {
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === editingBlock.id
-            ? { ...b, ...form, date: selectedDate }
-            : b
-        )
-      );
+      await updateItem(editingBlock.id, payload);
     } else {
-      const newBlock: TimeBlock = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-        date: selectedDate,
-        start: form.start,
-        end: form.end,
-        title: form.title,
-        category: form.category,
-        notes: form.notes,
-        done: false,
-      };
-      setBlocks((prev) => [...prev, newBlock]);
+      await addItem(payload);
     }
     setShowModal(false);
     setEditingBlock(null);
@@ -132,16 +139,16 @@ const DayPlanner = () => {
   };
 
   const toggleDone = (id: string) => {
-    setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, done: !b.done } : b)));
+    toggleCompleted(id);
   };
 
   const deleteBlock = (id: string) => {
-    setBlocks((prev) => prev.filter((b) => b.id !== id));
+    deleteItem(id);
   };
 
   const dayBlocks = blocks
-    .filter((b) => b.date === selectedDate)
-    .sort((a, b) => a.start.localeCompare(b.start));
+    .filter((b) => b.item_date === selectedDate)
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
 
   const containerHeight = (DAY_END - DAY_START + 1) * HOUR_HEIGHT;
 
@@ -150,6 +157,22 @@ const DayPlanner = () => {
   const currentTimeOffset = isToday
     ? (new Date().getHours() * 60 + new Date().getMinutes() - DAY_START * 60) * (HOUR_HEIGHT / 60)
     : null;
+
+  if (loading) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-muted-foreground">Loading blocks…</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-destructive">{error}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full p-4 space-y-4">
@@ -219,8 +242,12 @@ const DayPlanner = () => {
 
         {/* Time blocks */}
         {dayBlocks.map((block) => {
-          const startParts = block.start.split(":");
-          const endParts = block.end.split(":");
+          // Guard against missing start_time or end_time
+          if (!block.start_time || !block.end_time) {
+            return null;
+          }
+          const startParts = block.start_time.split(":");
+          const endParts = block.end_time.split(":");
           const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
           const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
           const top = (startMinutes - DAY_START * 60) * (HOUR_HEIGHT / 60);
@@ -230,7 +257,7 @@ const DayPlanner = () => {
             <div
               key={block.id}
               className={`absolute left-16 right-0 top-[${top}px] h-[${height}px] ${bgClass} rounded-md border-l-4 border-primary cursor-pointer transition-opacity ${
-                block.done ? "opacity-50" : ""
+                block.completed ? "opacity-50" : ""
               }`}
               style={{ top: `${top}px`, height: `${height}px` }}
               onClick={() => handleEditBlock(block)}
@@ -240,7 +267,7 @@ const DayPlanner = () => {
                   <span className="font-medium">{block.title}</span>
                   <div className="flex items-center space-x-1">
                     <Checkbox
-                      checked={block.done}
+                      checked={block.completed}
                       onCheckedChange={() => toggleDone(block.id)}
                     />
                     <Button
@@ -257,12 +284,12 @@ const DayPlanner = () => {
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {block.start} – {block.end}
+                  {block.start_time} – {block.end_time}
                 </div>
-                {block.notes && (
-                  <div className="text-xs text-muted-foreground">{block.notes}</div>
+                {block.description && (
+                  <div className="text-xs text-muted-foreground">{block.description}</div>
                 )}
-                {block.done && (
+                {block.completed && (
                   <div className="absolute top-1 left-1">
                     <CheckCircle className="h-4 w-4 text-green-500" />
                   </div>
