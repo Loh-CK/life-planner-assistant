@@ -85,18 +85,18 @@ const Tasks = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-      title: form.title,
-      description: form.description,
-      item_date: form.item_date,
-      start_time: form.start_time,
-      end_time: "",
-      category: form.category,
-      priority: form.priority,
-      location: "",
-      completed: false,
-      item_type: "task",
-    };
+  const payload = {
+    title: form.title,
+    description: form.description,
+    item_date: form.item_date || null,
+    start_time: form.start_time || null,
+    end_time: null,
+    category: form.category,
+    priority: form.priority,
+    location: null,
+    completed: false,
+    item_type: "task",
+  };
     if (editingTask) {
       await updateItem(editingTask.id, payload);
     } else {
