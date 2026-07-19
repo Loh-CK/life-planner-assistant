@@ -1,6 +1,6 @@
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarHeader, SidebarContent, Sidebar, SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { CalendarIcon, HomeIcon, ListIcon, DollarSignIcon, BookOpenIcon, SettingsIcon, TimerIcon, LogOutIcon } from "lucide-react";
+import { CalendarIcon, HomeIcon, ListIcon, DollarSignIcon, BookOpenIcon, SettingsIcon, TimerIcon, LogOutIcon, UserIcon } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import AIAdvisorPanel from "@/components/AIAdvisorPanel";
@@ -22,6 +22,16 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const [open, setOpen] = useState(true);
   const { userId, email } = useCurrentUser();
+  const [displayName, setDisplayName] = useState<string>("");
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("lifePlannerSettings") ?? "{}");
+      setDisplayName(stored?.preferences?.displayName ?? "");
+    } catch {
+      setDisplayName("");
+    }
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -38,8 +48,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               <SidebarTrigger />
             </div>
           </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
+          <SidebarContent className="flex flex-col h-full">
+            <SidebarMenu className="flex-1">
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton
@@ -51,13 +61,31 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleSignOut}>
-                  <LogOutIcon className="h-4 w-4" />
-                  <span>Sign Out</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
+
+            <div className="mt-auto border-t border-sidebar-border pt-3 pb-3 px-3">
+              <div className="flex items-center gap-2 px-1 pb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent shrink-0">
+                  <UserIcon className="h-4 w-4 text-sidebar-accent-foreground" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium truncate">
+                    {displayName || email || "User"}
+                  </span>
+                  {displayName && email && (
+                    <span className="text-xs text-sidebar-foreground/60 truncate">{email}</span>
+                  )}
+                </div>
+              </div>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={handleSignOut}>
+                    <LogOutIcon className="h-4 w-4" />
+                    <span>Sign Out</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </div>
           </SidebarContent>
         </Sidebar>
         <SidebarInset className="flex-1">
