@@ -13,10 +13,10 @@ import { usePlannerItems } from "@/hooks/usePlannerItems";
 interface Task {
   id: string;
   title: string;
-  dueDate: string; // YYYY-MM-DD
-  dueTime?: string; // HH:mm
+  item_date: string; // YYYY-MM-DD
+  start_time: string; // HH:mm
   priority: "high" | "medium" | "low";
-  project: string;
+  category: string;
   description: string;
   completed: boolean;
 }
@@ -45,10 +45,10 @@ const Tasks = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [form, setForm] = useState<Omit<Task, "id" | "completed">>({
     title: "",
-    dueDate: "",
-    dueTime: "",
+    item_date: "",
+    start_time: "",
     priority: "low",
-    project: "",
+    category: "",
     description: "",
   });
 
@@ -56,10 +56,10 @@ const Tasks = () => {
     setEditingTask(null);
     setForm({
       title: "",
-      dueDate: "",
-      dueTime: "",
+      item_date: "",
+      start_time: "",
       priority: "low",
-      project: "",
+      category: "",
       description: "",
     });
     setModalOpen(true);
@@ -69,10 +69,10 @@ const Tasks = () => {
     setEditingTask(task);
     setForm({
       title: task.title,
-      dueDate: task.dueDate,
-      dueTime: task.dueTime ?? "",
+      item_date: task.item_date,
+      start_time: task.start_time,
       priority: task.priority,
-      project: task.project,
+      category: task.category,
       description: task.description,
     });
     setModalOpen(true);
@@ -88,10 +88,10 @@ const Tasks = () => {
     const payload = {
       title: form.title,
       description: form.description,
-      item_date: form.dueDate,
-      start_time: form.dueTime ?? "",
+      item_date: form.item_date,
+      start_time: form.start_time,
       end_time: "",
-      category: form.project,
+      category: form.category,
       priority: form.priority,
       location: "",
       completed: false,
@@ -113,7 +113,7 @@ const Tasks = () => {
     deleteItem(id);
   };
 
-  const projects = Array.from(new Set(tasks.map(t => t.project))).filter(Boolean);
+  const projects = Array.from(new Set(tasks.map(t => t.category))).filter(Boolean);
 
   const filteredTasks = tasks.filter(t => {
     const matchesSearch =
@@ -122,7 +122,7 @@ const Tasks = () => {
     const matchesPriority =
       priorityFilter === "all" || t.priority === priorityFilter;
     const matchesProject =
-      projectFilter === "all" || t.project === projectFilter;
+      projectFilter === "all" || t.category === projectFilter;
     return matchesSearch && matchesPriority && matchesProject;
   });
 
@@ -177,7 +177,7 @@ const Tasks = () => {
             </option>
           ))}
         </select>
-        <Button onClick={openAddModal} variant="primary">
+        <Button onClick={openAddModal} variant="default">
           Add Task
         </Button>
       </div>
@@ -201,7 +201,7 @@ const Tasks = () => {
                   <span
                     className={`px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700`}
                   >
-                    {task.project}
+                    {task.category}
                   </span>
                 </div>
                 <h3
@@ -210,8 +210,8 @@ const Tasks = () => {
                   {task.title}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Due: {task.dueDate}
-                  {task.dueTime && ` at ${task.dueTime}`}
+                  Due: {task.item_date}
+                  {task.start_time && ` at ${task.start_time}`}
                 </p>
                 {task.description && (
                   <p className="text-sm text-muted-foreground">
@@ -268,15 +268,15 @@ const Tasks = () => {
             <div className="grid grid-cols-2 gap-2">
               <Input
                 type="date"
-                name="dueDate"
-                value={form.dueDate}
+                name="item_date"
+                value={form.item_date}
                 onChange={handleFormChange}
                 required
               />
               <Input
                 type="time"
-                name="dueTime"
-                value={form.dueTime}
+                name="start_time"
+                value={form.start_time}
                 onChange={handleFormChange}
               />
             </div>
@@ -291,9 +291,9 @@ const Tasks = () => {
               <option value="low">Low</option>
             </select>
             <Input
-              name="project"
+              name="category"
               placeholder="Project / Category"
-              value={form.project}
+              value={form.category}
               onChange={handleFormChange}
             />
             <Input
