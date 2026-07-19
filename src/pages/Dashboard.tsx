@@ -125,6 +125,133 @@ const Dashboard = () => {
 
   // Today's tasks completion
   const todaysTasks = tasks.filter((t) => t.item_date === today);
+  const completedToday = todays...import { useState, useEffect } from "react";
+import { KpiCard } from "@/components/KpiCard";
+import { CalendarIcon, ListCheckIcon, DollarSignIcon, TimerIcon, Calendar, CheckCircle, AlertCircle, Clock, Plus } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { usePlannerItems } from "@/hooks/usePlannerItems";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+
+interface Event {
+  id: string;
+  title: string;
+  item_date: string; // YYYY-MM-DD
+  start_time: string;
+  end_time: string;
+  category: string;
+  location: string;
+  item_type: "event";
+}
+
+interface Task {
+  id: string;
+  title: string;
+  item_date: string;
+  start_time: string;
+  end_time: string;
+  category: string;
+  description: string;
+  completed: boolean;
+  priority: "high" | "medium" | "low";
+  item_type: "task";
+}
+
+const Dashboard = () => {
+  const {
+    items: events,
+    loading: eventsLoading,
+    error: eventsError,
+    addItem: addEvent,
+  } = usePlannerItems("event");
+
+  const {
+    items: tasks,
+    loading: tasksLoading,
+    error: tasksError,
+    addItem: addTask,
+  } = usePlannerItems("task");
+
+  const { email } = useCurrentUser();
+
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [focusSessions, setFocusSessions] = useState<any[]>([]);
+  const [intention, setIntention] = useState<string>("");
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const data = JSON.parse(localStorage.getItem("lifePlannerData") ?? "{}") as any;
+    setExpenses(data.expenses ?? []);
+    setFocusSessions(data.focusSessions ?? []);
+    setIntention(data.intention ?? '');
+  }, []);
+
+  // Persist changes
+  useEffect(() => {
+    localStorage.setItem(
+      "lifePlannerData",
+      JSON.stringify({ events, tasks, expenses, focusSessions, intention })
+    );
+  }, [events, tasks, expenses, focusSessions, intention]);
+
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+
+  // Greeting
+  const hour = now.getHours();
+  const greeting =
+    hour < 12
+      ? "Good morning"
+      : hour < 18
+      ? "Good afternoon"
+      : "Good evening";
+
+  // Next Up
+  const upcoming = [...events, ...tasks]
+    .map((e) => {
+      const dt = e.start_time
+        ? new Date(`${e.item_date}T${e.start_time}`)
+        : null;
+      return { ...e, datetime: dt };
+    })
+    .filter((e) => e.datetime && e.datetime >= now)
+    .sort((a, b) => a.datetime!.getTime() - b.datetime!.getTime());
+
+  const formatCountdown = (date: Date) => {
+    const diff = date.getTime() - now.getTime();
+    const diffHours = Math.floor(diff / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (diffHours < 24) {
+      return `in ${diffHours}h ${diffMinutes}m`;
+    }
+    const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+    return `in ${diffDays}d`;
+  };
+
+  const nextItem = upcoming[0];
+
+  // Weekly overview
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    return d;
+  });
+
+  const countForDay = (date: Date) => {
+    const dStr = date.toISOString().split("T")[0];
+    const ev = events.filter((e) => e.item_date === dStr).length;
+    const tk = tasks.filter((t) => t.item_date === dStr).length;
+    return ev + tk;
+  };
+
+  // Today's tasks completion
+  const todaysTasks = tasks.filter((t) => t.item_date === today);
   const completedToday = todaysTasks.filter((t) => t.completed).length;
   const totalToday = todaysTasks.length;
 
@@ -376,12 +503,14 @@ const QuickAddForm = ({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex space-x-2">
         <Button
+          type="button"
           variant={type === "event" ? "default" : "outline"}
           onClick={() => setType("event")}
         >
           Event
         </Button>
         <Button
+          type="button"
           variant={type === "task" ? "default" : "outline"}
           onClick={() => setType("task")}
         >
