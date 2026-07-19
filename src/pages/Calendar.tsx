@@ -16,13 +16,14 @@ import {
   Plus,
   Calendar as CalendarIcon,
 } from "lucide-react";
+import { usePlannerItems } from "@/hooks/usePlannerItems";
 
 interface Event {
   id: string;
   title: string;
-  date: string;
-  start: string;
-  end: string;
+  item_date: string; // YYYY-MM-DD
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
   category: string;
   location: string;
 }
@@ -32,6 +33,15 @@ const DAY_END = 23;
 const HOUR_HEIGHT = 60;
 
 const Calendar = () => {
+  const {
+    items: events,
+    loading,
+    error,
+    addItem,
+    updateItem,
+    deleteItem,
+  } = usePlannerItems("event");
+
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
@@ -41,27 +51,15 @@ const Calendar = () => {
     return d;
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({
     title: "",
-    date: "",
-    start: "",
-    end: "",
+    item_date: "",
+    start_time: "",
+    end_time: "",
     category: "",
     location: "",
   });
-
-  useEffect(() => {
-    const stored = JSON.parse(
-      localStorage.getItem("lifePlannerEvents") ?? "{}",
-    ) as any;
-    setEvents(stored.events ?? []);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("lifePlannerEvents", JSON.stringify({ events }));
-  }, [events]);
 
   const formatDate = (y: number, m: number, d: number) => {
     const mm = (m + 1).toString().padStart(2, "0");
@@ -69,31 +67,32 @@ const Calendar = () => {
     return `${y}-${mm}-${dd}`;
   };
 
-  const eventsForDate = (date: string) => events.filter((e) => e.date === date);
+  const eventsForDate = (date: string) => events.filter((e) => e.item_date === date);
 
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newEvent: Event = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+    const payload = {
       title: form.title,
-      date: form.date,
-      start: form.start,
-      end: form.end,
+      item_date: form.item_date || null,
+      start_time: form.start_time || null,
+      end_time: form.end_time || null,
       category: form.category,
       location: form.location,
+      completed: false,
+      item_type: "event",
     };
-    setEvents((prev) => [...prev, newEvent]);
+    await addItem(payload);
     setShowModal(false);
     setForm({
       title: "",
-      date: "",
-      start: "",
-      end: "",
+      item_date: "",
+      start_time: "",
+      end_time: "",
       category: "",
       location: "",
     });
@@ -102,18 +101,40 @@ const Calendar = () => {
   const openAddModal = (dateStr?: string, start?: string, end?: string) => {
     setForm({
       title: "",
-      date: dateStr ?? "",
-      start: start ?? "",
-      end: end ?? "",
+      item_date: dateStr ?? "",
+      start_time: start ?? "",
+      end_time: end ?? "",
       category: "",
       location: "",
     });
     setShowModal(true);
   };
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const openEditModal = (event: Event) => {
+    setForm({
+      title: event.title,
+      item_date: event.item_date,
+      start_time: event.start_time,
+      end_time: event.end_time,
+      category: event.category,
+      location: event.location,
+    });
+    setShowModal(true);
+  };
 
-  // ---------- Month view logic ----------
+  const deleteEvent = (id: string) => {
+    deleteItem(id);
+  };
+
+  const today = new Date().toISOString().split("T")[0];
+  const isToday = selectedDate === today;
+  const currentTimeOffset = isToday
+    ? (new Date().getHours() * 60 + new Date().getMinutes() - DAY_START * 60) * (HOUR_HEIGHT / 60)
+    : null;
+
+  const containerHeight = (DAY_END - DAY_START + 1) * HOUR_HEIGHT;
+
+  const monthWeeks: (number | null)[][] = [];
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -121,9 +142,8 @@ const Calendar = () => {
   const daysInMonth = lastDay.getDate();
   const startWeekday = (firstDay.getDay() + 6) % 7;
 
-  const monthWeeks: (number | null)[][] = [];
   let day = 1;
-  let prevMonthDays = new Date(year, month, 0).getDate();
+  const prevMonthDays = new Date(year, month, 0).getDate();
   for (let w = 0; w < 6; w++) {
     const week: (number | null)[] = [];
     for (let d = 0; d < 7; d++) {
@@ -154,7 +174,6 @@ const Calendar = () => {
     setSelectedDate(dateStr);
   };
 
-  // ---------- Week view logic ----------
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(currentWeekStart);
     d.setDate(d.getDate() + i);
@@ -188,56 +207,52 @@ const Calendar = () => {
     )}, ${end.getFullYear()}`;
   };
 
-  const containerHeight = (DAY_END - DAY_START + 1) * HOUR_HEIGHT;
-
   const categoryColors: Record<string, string> = {
     work: "bg-primary",
     personal: "bg-secondary",
     health: "bg-green-400",
   };
 
+  if (loading) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-muted-foreground">Loading events…</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-destructive">{error}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full">
       <div className="flex-1 p-4 flex flex-col">
         {/* View toggle */}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-1 bg-muted rounded-md p-1">
-            <Button
-              size="sm"
-              variant={viewMode === "month" ? "default" : "ghost"}
-              onClick={() => setViewMode("month")}
-            >
-              Month
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "week" ? "default" : "ghost"}
-              onClick={() => setViewMode("week")}
-            >
-              Week
+          <Button variant="ghost" size="icon" onClick={handleMonthPrev}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center space-x-2">
+            <h2 className="text-xl font-semibold">
+              {currentMonth.toLocaleString("default", { month: "long" })}{" "}
+              {year}
+            </h2>
+            <Button variant="outline" size="sm" onClick={handleMonthToday}>
+              <CalendarIcon className="h-4 w-4 mr-1" /> Today
             </Button>
           </div>
+          <Button variant="ghost" size="icon" onClick={handleMonthNext}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
 
         {viewMode === "month" ? (
           <>
-            <div className="flex items-center justify-between mb-4">
-              <Button variant="ghost" size="icon" onClick={handleMonthPrev}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-xl font-semibold">
-                  {currentMonth.toLocaleString("default", { month: "long" })}{" "}
-                  {year}
-                </h2>
-                <Button variant="outline" size="sm" onClick={handleMonthToday}>
-                  <CalendarIcon className="h-4 w-4 mr-1" /> Today
-                </Button>
-              </div>
-              <Button variant="ghost" size="icon" onClick={handleMonthNext}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
             <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2">
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
                 <div key={d} className="font-medium">
@@ -257,7 +272,7 @@ const Calendar = () => {
                   date.getDate(),
                 );
                 const isCurrentMonth = date.getMonth() === month;
-                const isToday = dateStr === todayStr;
+                const isToday = dateStr === today;
                 const dayEvents = eventsForDate(dateStr);
                 return (
                   <div
@@ -318,7 +333,7 @@ const Calendar = () => {
                   d.getMonth(),
                   d.getDate(),
                 );
-                const isToday = dateStr === todayStr;
+                const isToday = dateStr === today;
                 return (
                   <div key={dateStr} className="text-center pb-2">
                     <div className="text-xs text-muted-foreground">
@@ -389,8 +404,8 @@ const Calendar = () => {
                         },
                       )}
                       {dayEvents.map((e) => {
-                        const [sh, sm] = e.start.split(":").map(Number);
-                        const [eh, em] = e.end.split(":").map(Number);
+                        const [sh, sm] = e.start_time.split(":").map(Number);
+                        const [eh, em] = e.end_time.split(":").map(Number);
                         const top = sh * 60 + sm - DAY_START * 60;
                         const height = Math.max(
                           eh * 60 + em - (sh * 60 + sm),
@@ -411,7 +426,7 @@ const Calendar = () => {
                               {e.title}
                             </div>
                             <div className="opacity-90">
-                              {e.start}–{e.end}
+                              {e.start_time}–{e.end_time}
                             </div>
                           </div>
                         );
@@ -434,7 +449,7 @@ const Calendar = () => {
                 <li key={e.id} className="p-2 bg-card rounded">
                   <div className="font-medium">{e.title}</div>
                   <div className="text-sm text-muted-foreground">
-                    {e.start} – {e.end} | {e.category} | {e.location}
+                    {e.start_time}–{e.end_time} | {e.category} | {e.location}
                   </div>
                 </li>
               ))}
@@ -474,25 +489,23 @@ const Calendar = () => {
               />
               <Input
                 type="date"
-                name="date"
-                value={form.date}
+                name="item_date"
+                value={form.item_date}
                 onChange={handleFormChange}
                 required
               />
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="time"
-                  name="start"
-                  value={form.start}
+                  name="start_time"
+                  value={form.start_time}
                   onChange={handleFormChange}
-                  required
                 />
                 <Input
                   type="time"
-                  name="end"
-                  value={form.end}
+                  name="end_time"
+                  value={form.end_time}
                   onChange={handleFormChange}
-                  required
                 />
               </div>
               <Input
