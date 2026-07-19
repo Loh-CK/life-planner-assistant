@@ -75,29 +75,6 @@ const DayPlanner = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddBlock = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newBlock: TimeBlock = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      item_date: selectedDate,
-      start_time: form.start,
-      end_time: form.end,
-      title: form.title,
-      category: form.category,
-      description: form.notes,
-      completed: false,
-    };
-    setBlocks((prev) => [...prev, newBlock]);
-    setShowModal(false);
-    setForm({
-      title: "",
-      category: "",
-      start: "06:00",
-      end: "07:00",
-      notes: "",
-    });
-  };
-
   const handleEditBlock = (block: TimeBlock) => {
     setEditingBlock(block);
     setForm({
