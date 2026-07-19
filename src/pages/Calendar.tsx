@@ -54,7 +54,7 @@ const Calendar = () => {
 
   useEffect(() => {
     const stored = JSON.parse(
-      localStorage.getItem("lifePlannerEvents") ?? "{}"
+      localStorage.getItem("lifePlannerEvents") ?? "{}",
     ) as any;
     setEvents(stored.events ?? []);
   }, []);
@@ -89,7 +89,14 @@ const Calendar = () => {
     };
     setEvents((prev) => [...prev, newEvent]);
     setShowModal(false);
-    setForm({ title: "", date: "", start: "", end: "", category: "", location: "" });
+    setForm({
+      title: "",
+      date: "",
+      start: "",
+      end: "",
+      category: "",
+      location: "",
+    });
   };
 
   const openAddModal = (dateStr?: string, start?: string, end?: string) => {
@@ -138,7 +145,11 @@ const Calendar = () => {
   const handleMonthToday = () => setCurrentMonth(new Date());
 
   const handleDayClick = (date: Date, isCurrentMonth: boolean) => {
-    const dateStr = formatDate(date.getFullYear(), date.getMonth(), date.getDate());
+    const dateStr = formatDate(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    );
     if (!isCurrentMonth) setCurrentMonth(date);
     setSelectedDate(dateStr);
   };
@@ -173,7 +184,7 @@ const Calendar = () => {
     const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
     return `${currentWeekStart.toLocaleDateString("default", opts)} – ${end.toLocaleDateString(
       "default",
-      opts
+      opts,
     )}, ${end.getFullYear()}`;
   };
 
@@ -216,7 +227,8 @@ const Calendar = () => {
               </Button>
               <div className="flex items-center space-x-2">
                 <h2 className="text-xl font-semibold">
-                  {currentMonth.toLocaleString("default", { month: "long" })} {year}
+                  {currentMonth.toLocaleString("default", { month: "long" })}{" "}
+                  {year}
                 </h2>
                 <Button variant="outline" size="sm" onClick={handleMonthToday}>
                   <CalendarIcon className="h-4 w-4 mr-1" /> Today
@@ -239,7 +251,11 @@ const Calendar = () => {
                 const dayIndex = idx % 7;
                 const offset = weekIndex * 7 + dayIndex - startWeekday;
                 const date = new Date(year, month, 1 + offset);
-                const dateStr = formatDate(date.getFullYear(), date.getMonth(), date.getDate());
+                const dateStr = formatDate(
+                  date.getFullYear(),
+                  date.getMonth(),
+                  date.getDate(),
+                );
                 const isCurrentMonth = date.getMonth() === month;
                 const isToday = dateStr === todayStr;
                 const dayEvents = eventsForDate(dateStr);
@@ -265,7 +281,10 @@ const Calendar = () => {
                     {dayEvents.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {dayEvents.map((e) => (
-                          <span key={e.id} className="w-2 h-2 rounded-full bg-primary" />
+                          <span
+                            key={e.id}
+                            className="w-2 h-2 rounded-full bg-primary"
+                          />
                         ))}
                       </div>
                     )}
@@ -294,7 +313,11 @@ const Calendar = () => {
             <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b mb-1">
               <div />
               {weekDays.map((d) => {
-                const dateStr = formatDate(d.getFullYear(), d.getMonth(), d.getDate());
+                const dateStr = formatDate(
+                  d.getFullYear(),
+                  d.getMonth(),
+                  d.getDate(),
+                );
                 const isToday = dateStr === todayStr;
                 return (
                   <div key={dateStr} className="text-center pb-2">
@@ -313,7 +336,10 @@ const Calendar = () => {
               })}
             </div>
 
-            <div className="flex-1 overflow-y-auto relative" style={{ height: `${containerHeight}px` }}>
+            <div
+              className="flex-1 overflow-y-auto relative"
+              style={{ height: `${containerHeight}px` }}
+            >
               <div className="grid grid-cols-[60px_repeat(7,1fr)] absolute inset-0">
                 {/* Hour labels column */}
                 <div className="relative">
@@ -330,36 +356,46 @@ const Calendar = () => {
 
                 {/* Day columns */}
                 {weekDays.map((d) => {
-                  const dateStr = formatDate(d.getFullYear(), d.getMonth(), d.getDate());
+                  const dateStr = formatDate(
+                    d.getFullYear(),
+                    d.getMonth(),
+                    d.getDate(),
+                  );
                   const dayEvents = eventsForDate(dateStr);
                   return (
                     <div key={dateStr} className="relative border-l">
-                      {Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => {
-                        const hour = DAY_START + i;
-                        return (
-                          <div
-                            key={i}
-                            className="border-t cursor-pointer group"
-                            style={{ height: `${HOUR_HEIGHT}px` }}
-                            onClick={() =>
-                              openAddModal(
-                                dateStr,
-                                `${hour.toString().padStart(2, "0")}:00`,
-                                `${(hour + 1).toString().padStart(2, "0")}:00`
-                              )
-                            }
-                          >
-                            <div className="h-full w-full flex items-center justify-center text-transparent group-hover:text-muted-foreground group-hover:bg-muted/30 transition-colors text-xs">
-                              +
+                      {Array.from(
+                        { length: DAY_END - DAY_START + 1 },
+                        (_, i) => {
+                          const hour = DAY_START + i;
+                          return (
+                            <div
+                              key={i}
+                              className="border-t cursor-pointer group"
+                              style={{ height: `${HOUR_HEIGHT}px` }}
+                              onClick={() =>
+                                openAddModal(
+                                  dateStr,
+                                  `${hour.toString().padStart(2, "0")}:00`,
+                                  `${(hour + 1).toString().padStart(2, "0")}:00`,
+                                )
+                              }
+                            >
+                              <div className="h-full w-full flex items-center justify-center text-transparent group-hover:text-muted-foreground group-hover:bg-muted/30 transition-colors text-xs">
+                                +
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        },
+                      )}
                       {dayEvents.map((e) => {
                         const [sh, sm] = e.start.split(":").map(Number);
                         const [eh, em] = e.end.split(":").map(Number);
-                        const top = (sh * 60 + sm) - DAY_START * 60;
-                        const height = Math.max((eh * 60 + em) - (sh * 60 + sm), 20);
+                        const top = sh * 60 + sm - DAY_START * 60;
+                        const height = Math.max(
+                          eh * 60 + em - (sh * 60 + sm),
+                          20,
+                        );
                         const bg = categoryColors[e.category] ?? "bg-primary";
                         return (
                           <div
@@ -371,8 +407,12 @@ const Calendar = () => {
                               setSelectedDate(dateStr);
                             }}
                           >
-                            <div className="font-medium truncate">{e.title}</div>
-                            <div className="opacity-90">{e.start}–{e.end}</div>
+                            <div className="font-medium truncate">
+                              {e.title}
+                            </div>
+                            <div className="opacity-90">
+                              {e.start}–{e.end}
+                            </div>
                           </div>
                         );
                       })}
@@ -400,14 +440,22 @@ const Calendar = () => {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">No events for this day.</p>
+            <p className="text-sm text-muted-foreground">
+              No events for this day.
+            </p>
           )
         ) : (
-          <p className="text-sm text-muted-foreground">Select a day to view events.</p>
+          <p className="text-sm text-muted-foreground">
+            Select a day to view events.
+          </p>
         )}
         <Dialog open={showModal} onOpenChange={setShowModal}>
           <DialogTrigger asChild>
-            <Button className="mt-4 w-full" variant="outline" onClick={() => openAddModal(selectedDate ?? "")}>
+            <Button
+              className="mt-4 w-full"
+              variant="outline"
+              onClick={() => openAddModal(selectedDate ?? "")}
+            >
               <Plus className="h-4 w-4 mr-2" /> New Event
             </Button>
           </DialogTrigger>
@@ -417,14 +465,48 @@ const Calendar = () => {
               <DialogDescription>Fill in the details below.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <Input name="title" placeholder="Title" value={form.title} onChange={handleFormChange} required />
-              <Input type="date" name="date" value={form.date} onChange={handleFormChange} required />
+              <Input
+                name="title"
+                placeholder="Title"
+                value={form.title}
+                onChange={handleFormChange}
+                required
+              />
+              <Input
+                type="date"
+                name="date"
+                value={form.date}
+                onChange={handleFormChange}
+                required
+              />
               <div className="grid grid-cols-2 gap-2">
-                <Input type="time" name="start" value={form.start} onChange={handleFormChange} required />
-                <Input type="time" name="end" value={form.end} onChange={handleFormChange} required />
+                <Input
+                  type="time"
+                  name="start"
+                  value={form.start}
+                  onChange={handleFormChange}
+                  required
+                />
+                <Input
+                  type="time"
+                  name="end"
+                  value={form.end}
+                  onChange={handleFormChange}
+                  required
+                />
               </div>
-              <Input name="category" placeholder="Category" value={form.category} onChange={handleFormChange} />
-              <Input name="location" placeholder="Location" value={form.location} onChange={handleFormChange} />
+              <Input
+                name="category"
+                placeholder="Category"
+                value={form.category}
+                onChange={handleFormChange}
+              />
+              <Input
+                name="location"
+                placeholder="Location"
+                value={form.location}
+                onChange={handleFormChange}
+              />
               <DialogFooter>
                 <Button type="submit">Save</Button>
               </DialogFooter>
