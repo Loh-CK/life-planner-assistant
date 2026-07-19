@@ -59,7 +59,7 @@ const Dashboard = () => {
     );
   }, [events, tasks, expenses, focusSessions, intention]);
 
-  const today = new Date().toLocaleDateString();
+  const today = new Date().toISOString().split("T")[0];
   const kpis = {
     events: events.filter(e => e.item_date === today).length,
     tasks: tasks.filter(t => !t.completed).length,
