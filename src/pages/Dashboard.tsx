@@ -2,25 +2,50 @@ import { useState, useEffect } from "react";
 import { KpiCard } from "@/components/KpiCard";
 import { CalendarIcon, ListCheckIcon, DollarSignIcon, TimerIcon } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { usePlannerItems } from "@/hooks/usePlannerItems";
 
-// Types for stored data
-interface Event { id: string; title: string; start: string; end: string; }
-interface Task { id: string; title: string; priority: number; completed: boolean; }
-interface Expense { id: string; amount: number; description: string; }
-interface FocusSession { id: string; date: string; duration: number; }
+interface Event {
+  id: string;
+  title: string;
+  item_date: string; // YYYY-MM-DD
+  start_time: string;
+  end_time: string;
+  category: string;
+  location: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  item_date: string;
+  start_time: string;
+  end_time: string;
+  category: string;
+  description: string;
+  completed: boolean;
+  priority: "high" | "medium" | "low";
+}
 
 const Dashboard = () => {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [focusSessions, setFocusSessions] = useState<FocusSession[]>([]);
-  const [intention, setIntention] = useState<string>('');
+  const {
+    items: events,
+    loading: eventsLoading,
+    error: eventsError,
+  } = usePlannerItems("event");
+
+  const {
+    items: tasks,
+    loading: tasksLoading,
+    error: tasksError,
+  } = usePlannerItems("task");
+
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [focusSessions, setFocusSessions] = useState<any[]>([]);
+  const [intention, setIntention] = useState<string>("");
 
   // Load from localStorage on mount
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("lifePlannerData") ?? "{}") as any;
-    setEvents(data.events ?? []);
-    setTasks(data.tasks ?? []);
     setExpenses(data.expenses ?? []);
     setFocusSessions(data.focusSessions ?? []);
     setIntention(data.intention ?? '');
@@ -36,16 +61,38 @@ const Dashboard = () => {
 
   const today = new Date().toLocaleDateString();
   const kpis = {
-    events: events.filter(e => new Date(e.start).toLocaleDateString() === today).length,
+    events: events.filter(e => e.item_date === today).length,
     tasks: tasks.filter(t => !t.completed).length,
     spending: expenses.reduce((sum, e) => sum + e.amount, 0),
     focus: focusSessions.filter(f => f.date === today).length,
   };
 
-  const todaysEvents = events.filter(e => new Date(e.start).toLocaleDateString() === today);
+  const todaysEvents = events
+    .filter(e => e.item_date === today)
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+  const priorityOrder = { high: 1, medium: 2, low: 3 };
   const priorityTasks = tasks
     .filter(t => !t.completed)
-    .sort((a, b) => a.priority - b.priority);
+    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+  if (eventsLoading || tasksLoading) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-muted-foreground">Loading dashboard…</span>
+      </div>
+    );
+  }
+
+  if (eventsError || tasksError) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-destructive">
+          {eventsError?.message ?? tasksError?.message ?? "Error loading data"}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-6">
@@ -71,7 +118,7 @@ const Dashboard = () => {
                   {todaysEvents.map(e => (
                     <li key={e.id} className="p-2 bg-card rounded">
                       <strong>{e.title}</strong> <br/>
-                      {new Date(e.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(e.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {e.start_time} – {e.end_time}
                     </li>
                   ))}
                 </ul>
