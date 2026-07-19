@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, CheckCircle } from "lucide-react";
+import { usePlannerItems } from "@/hooks/usePlannerItems";
 
 interface Task {
   id: string;
@@ -25,7 +28,16 @@ const priorityColors = {
 };
 
 const Tasks = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const {
+    items: tasks,
+    loading,
+    error,
+    addItem,
+    updateItem,
+    deleteItem,
+    toggleCompleted,
+  } = usePlannerItems("task");
+
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
@@ -39,17 +51,6 @@ const Tasks = () => {
     project: "",
     description: "",
   });
-
-  // Load tasks from localStorage
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("lifePlannerTasks") ?? "{}") as any;
-    setTasks(stored.tasks ?? []);
-  }, []);
-
-  // Persist tasks
-  useEffect(() => {
-    localStorage.setItem("lifePlannerTasks", JSON.stringify({ tasks }));
-  }, [tasks]);
 
   const openAddModal = () => {
     setEditingTask(null);
@@ -82,31 +83,34 @@ const Tasks = () => {
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      title: form.title,
+      description: form.description,
+      item_date: form.dueDate,
+      start_time: form.dueTime ?? "",
+      end_time: "",
+      category: form.project,
+      priority: form.priority,
+      location: "",
+      completed: false,
+      item_type: "task",
+    };
     if (editingTask) {
-      setTasks(prev =>
-        prev.map(t => (t.id === editingTask.id ? { ...t, ...form } : t))
-      );
+      await updateItem(editingTask.id, payload);
     } else {
-      const newTask: Task = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-        ...form,
-        completed: false,
-      };
-      setTasks(prev => [...prev, newTask]);
+      await addItem(payload);
     }
     setModalOpen(false);
   };
 
   const toggleComplete = (id: string) => {
-    setTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
+    toggleCompleted(id);
   };
 
   const deleteTask = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
+    deleteItem(id);
   };
 
   const projects = Array.from(new Set(tasks.map(t => t.project))).filter(Boolean);
@@ -121,6 +125,22 @@ const Tasks = () => {
       projectFilter === "all" || t.project === projectFilter;
     return matchesSearch && matchesPriority && matchesProject;
   });
+
+  if (loading) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-muted-foreground">Loading tasks…</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-destructive">{error}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-4">
