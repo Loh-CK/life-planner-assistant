@@ -79,7 +79,7 @@ const Dashboard = () => {
   if (eventsLoading || tasksLoading) {
     return (
       <div className="p-4 flex justify-center items-center h-64">
-        <span className="text-muted-foreground">Loading Dashboard…</span>
+        <span className="text-muted-foreground">Loading dashboard…</span>
       </div>
     );
   }
