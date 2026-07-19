@@ -7,6 +7,16 @@ import Login from '@/pages/Login';
 import NotFound from '@/pages/NotFound';
 
 const App = () => {
+  return (
+    <SessionContextProvider>
+      <BrowserRouter>
+        <AuthRoutes />
+      </BrowserRouter>
+    </SessionContextProvider>
+  );
+};
+
+const AuthRoutes = () => {
   const { session } = useSession();
   const [loading, setLoading] = useState(true);
 
@@ -18,18 +28,14 @@ const App = () => {
   if (loading) return null;
 
   return (
-    <SessionContextProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/*"
-            element={session ? <Index /> : <Navigate to="/login" replace />}
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </SessionContextProvider>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/*"
+        element={session ? <Index /> : <Navigate to="/login" replace />}
+      />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 };
 
