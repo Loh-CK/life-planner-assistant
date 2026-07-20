@@ -100,11 +100,7 @@ const Expenses = () => {
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newTrans: Transaction = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      ...transForm,
-    };
-    await addTx(newTrans);
+    await addTx(transForm);
     setShowTransModal(false);
     setTransForm({
       item_date: null,
