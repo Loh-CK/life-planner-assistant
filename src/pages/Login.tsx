@@ -30,6 +30,7 @@ const Login = () => {
         });
         if (loginError) throw loginError;
         showSuccess("Logged in successfully");
+        navigate("/dashboard");
       } else {
         const { error: signupError } = await supabase.auth.signUp({
           email,
