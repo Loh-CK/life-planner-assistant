@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { showError, showSuccess } from "@/utils/toast";
 import { Mail, Lock, Calendar, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
