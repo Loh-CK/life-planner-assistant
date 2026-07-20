@@ -181,7 +181,7 @@ const Expenses = () => {
               })}
             </SelectContent>
           </Select>
-          <Button onClick={() => setShowTransModal(true)} variant="primary">
+          <Button onClick={() => setShowTransModal(true)} variant="default">
             <Plus className="h-4 w-4 mr-2" /> Add Transaction
           </Button>
           <Button onClick={() => setShowBudgetModal(true)} variant="outline">
