@@ -72,10 +72,6 @@ const Expenses = () => {
     amount: 0,
   });
 
-  // New category handling for transaction form
-  const [isNewCategorySelectedTrans, setIsNewCategorySelectedTrans] = useState(false);
-  const [transNewCategoryName, setTransNewCategoryName] = useState("");
-
   // New category handling for budget form
   const [isNewCategorySelectedBudget, setIsNewCategorySelectedBudget] = useState(false);
   const [budgetNewCategoryName, setBudgetNewCategoryName] = useState("");
@@ -110,10 +106,8 @@ const Expenses = () => {
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    const category = isNewCategorySelectedTrans ? transNewCategoryName.trim() : transForm.category;
     const newTrans: Transaction = {
       ...transForm,
-      category,
     };
     await addTx(newTrans);
     setShowTransModal(false);
@@ -125,8 +119,6 @@ const Expenses = () => {
       payment_method: "",
       amount: 0,
     });
-    setIsNewCategorySelectedTrans(false);
-    setTransNewCategoryName("");
   };
 
   const handleBudgetFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -488,16 +480,8 @@ const Expenses = () => {
               </SelectContent>
             </Select>
             <Select
-              value={isNewCategorySelectedTrans ? "new" : transForm.category}
-              onValueChange={val => {
-                if (val === "new") {
-                  setIsNewCategorySelectedTrans(true);
-                  setTransNewCategoryName("");
-                } else {
-                  setIsNewCategorySelectedTrans(false);
-                  setTransForm(prev => ({ ...prev, category: val }));
-                }
-              }}
+              value={transForm.category}
+              onValueChange={val => setTransForm(prev => ({ ...prev, category: val }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Category" />
@@ -506,18 +490,8 @@ const Expenses = () => {
                 {categories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
-                <SelectItem value="new">+ Add new category...</SelectItem>
               </SelectContent>
             </Select>
-            {isNewCategorySelectedTrans && (
-              <Input
-                type="text"
-                placeholder="New category name"
-                value={transNewCategoryName}
-                onChange={e => setTransNewCategoryName(e.target.value)}
-                required
-              />
-            )}
             <Input
               type="text"
               name="title"
