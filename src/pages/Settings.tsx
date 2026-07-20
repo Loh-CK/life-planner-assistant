@@ -7,8 +7,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { showSuccess, showError } from "@/utils/toast";
-import { Plus, Trash2, Upload, Download } from "lucide-react";
-import { ContextScopeSelect, ContextScope } from "@/components/ContextScopeSelect";
+import { Trash2, Upload, Download, CheckCircle2, XCircle } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 interface SettingsData {
   ollama: {
@@ -38,22 +38,19 @@ const DEFAULT_SETTINGS: SettingsData = {
   },
 };
 
-const Settings = () => {
-  const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
-  const [testStatus, setTestStatus] = useState<string | null>(null);
-  const [contextScope, setContextScope] = useState<ContextScope>("Today");
-
-  // Load settings from localStorage
-  useEffect(() => {
+const loadStoredSettings = (): SettingsData => {
+  try {
     const stored = localStorage.getItem("lifePlannerSettings");
-    if (stored) {
-      try {
-        setSettings(JSON.parse(stored));
-      } catch {
-        setSettings(DEFAULT_SETTINGS);
-      }
-    }
-  }, []);
+    return stored ? JSON.parse(stored) : DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+};
+
+const Settings = () => {
+  const [settings, setSettings] = useState<SettingsData>(loadStoredSettings);
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
 
   // Persist settings
   useEffect(() => {
@@ -67,19 +64,38 @@ const Settings = () => {
     }));
   };
 
+  // Check Ollama is reachable and pull the list of locally installed models
   const testConnection = async () => {
     setTestStatus("testing");
     try {
       const res = await fetch(`${settings.ollama.url}/api/tags`);
       if (!res.ok) throw new Error(`Status ${res.status}`);
-      const data = await res.json();
+      const data: { models?: { name?: string; model?: string }[] } = await res.json();
+      const models: string[] = (data.models ?? [])
+        .map(m => m.name ?? m.model)
+        .filter((name): name is string => Boolean(name));
+      setAvailableModels(models);
       setTestStatus("success");
-      showSuccess("Connection successful!");
+      showSuccess(
+        models.length
+          ? `Connected — found ${models.length} model${models.length === 1 ? "" : "s"}.`
+          : "Connected to Ollama, but no models are installed locally."
+      );
     } catch (e) {
       setTestStatus("error");
       showError(`Connection failed: ${(e as Error).message}`);
     }
   };
+
+  // Try to load the model list once on page load, so the dropdown is populated without a manual click
+  useEffect(() => {
+    testConnection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const modelOptions = Array.from(
+    new Set([...(settings.ollama.model ? [settings.ollama.model] : []), ...availableModels])
+  );
 
   const exportBackup = () => {
     const data = localStorage.getItem("lifePlannerSettings") ?? "{}";
@@ -119,7 +135,7 @@ const Settings = () => {
 
   return (
     <div className="p-4 space-y-6">
-      <h1 className="text-2xl font-bold mb-4">Settings</h1>
+      <PageHeader title="Settings" description="Configure your AI advisor, preferences, and data." />
 
       {/* Ollama AI Advisor */}
       <Card>
@@ -137,12 +153,30 @@ const Settings = () => {
               />
             </div>
             <div>
-              <Label htmlFor="ollama-model">Model Name</Label>
-              <Input
-                id="ollama-model"
+              <Label htmlFor="ollama-model">Model</Label>
+              <Select
                 value={settings.ollama.model}
-                onChange={e => handleChange("ollama", "model", e.target.value)}
-              />
+                onValueChange={val => handleChange("ollama", "model", val)}
+              >
+                <SelectTrigger id="ollama-model">
+                  <SelectValue
+                    placeholder={testStatus === "testing" ? "Loading models…" : "Select a model"}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelOptions.length > 0 ? (
+                    modelOptions.map(m => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No models found — click "Test Connection".
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="ollama-temp">Temperature</Label>
@@ -167,9 +201,24 @@ const Settings = () => {
               />
             </div>
           </div>
-          <Button onClick={testConnection} disabled={testStatus === "testing"}>
-            {testStatus === "testing" ? "Testing..." : "Test Connection"}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={testConnection} disabled={testStatus === "testing"}>
+              {testStatus === "testing" ? "Testing..." : "Test Connection"}
+            </Button>
+            {testStatus === "success" && (
+              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                <CheckCircle2 className="h-4 w-4" />
+                Ollama is reachable
+                {availableModels.length > 0 && ` — ${availableModels.length} model${availableModels.length === 1 ? "" : "s"} found`}
+              </span>
+            )}
+            {testStatus === "error" && (
+              <span className="flex items-center gap-1.5 text-sm text-destructive">
+                <XCircle className="h-4 w-4" />
+                Couldn't reach Ollama at this URL
+              </span>
+            )}
+          </div>
         </CardContent>
       </Card>
 

@@ -83,4 +83,40 @@
     content: "";
     @apply absolute inset-0 rounded-full border-2 border-primary;
   }
+
+  /* AI Advisor markdown rendering (tables, lists) */
+  .advisor-markdown {
+    @apply text-sm leading-relaxed;
+  }
+  .advisor-markdown p {
+    @apply my-1;
+  }
+  .advisor-markdown p:first-child {
+    @apply mt-0;
+  }
+  .advisor-markdown p:last-child {
+    @apply mb-0;
+  }
+  .advisor-markdown ul {
+    @apply list-disc pl-5 my-1 space-y-0.5;
+  }
+  .advisor-markdown ol {
+    @apply list-decimal pl-5 my-1 space-y-0.5;
+  }
+  .advisor-markdown code {
+    @apply rounded bg-muted px-1 py-0.5 text-xs;
+  }
+  .advisor-markdown table {
+    @apply w-full border-collapse text-xs my-2;
+  }
+  .advisor-markdown th,
+  .advisor-markdown td {
+    @apply border border-border px-2 py-1 text-left align-top;
+  }
+  .advisor-markdown thead th {
+    @apply bg-muted font-semibold;
+  }
+  .advisor-markdown tbody tr:nth-child(even) {
+    @apply bg-muted/30;
+  }
 }

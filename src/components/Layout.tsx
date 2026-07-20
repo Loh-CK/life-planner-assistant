@@ -1,6 +1,6 @@
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarHeader, SidebarContent, Sidebar, SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { CalendarIcon, HomeIcon, ListIcon, DollarSignIcon, BookOpenIcon, SettingsIcon, TimerIcon, LogOutIcon, UserIcon } from "lucide-react";
+import { CalendarIcon, HomeIcon, ListIcon, DollarSignIcon, BookOpenIcon, SettingsIcon, TimerIcon, LogOutIcon, UserIcon, Sparkles, ListTodo } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import AIAdvisorPanel from "@/components/AIAdvisorPanel";
@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 const navItems = [
   { name: "Dashboard", icon: HomeIcon, path: "/dashboard" },
   { name: "Calendar", icon: CalendarIcon, path: "/calendar" },
-  { name: "Day Planner", icon: ListIcon, path: "/day-planner" },
+  { name: "Day Planner", icon: ListTodo, path: "/day-planner" },
   { name: "Tasks", icon: ListIcon, path: "/tasks" },
   { name: "Expenses", icon: DollarSignIcon, path: "/expenses" },
   { name: "Notes", icon: BookOpenIcon, path: "/notes" },
@@ -38,18 +38,24 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     navigate("/login");
   };
 
+  const activeItem = navItems.find((item) => location.pathname.startsWith(item.path));
+  const pageTitle = activeItem?.name ?? "Dashboard";
+
   return (
     <div className="flex h-screen w-full overflow-x-hidden">
       <SidebarProvider defaultOpen={open} onOpenChange={setOpen}>
         <Sidebar>
           <SidebarHeader>
-            <div className="flex items-center justify-between p-4">
-              <h1 className="text-xl font-bold">Life Planner Assistant</h1>
+            <div className="flex items-center gap-2 p-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <h1 className="flex-1 truncate text-lg font-bold leading-tight">Life Planner</h1>
               <SidebarTrigger />
             </div>
           </SidebarHeader>
           <SidebarContent className="flex flex-col h-full">
-            <SidebarMenu className="flex-1">
+            <SidebarMenu className="flex-1 gap-1 px-1">
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton
@@ -90,16 +96,23 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         </Sidebar>
         <SidebarInset className="flex-1">
           <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-4 border-b">
-              <div className="flex items-center">
-                <h2 className="text-lg font-semibold">{location.pathname.split("/")[1] || "Dashboard"}</h2>
+            <div className="flex items-center justify-between gap-4 border-b bg-card/60 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger className="md:hidden" />
+                <h2 className="text-lg font-semibold">{pageTitle}</h2>
               </div>
-              <div>{new Date().toLocaleDateString()}</div>
+              <div className="text-sm text-muted-foreground">
+                {new Date().toLocaleDateString(undefined, {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </div>
             </div>
             <div className="flex-1 overflow-auto p-4">{children}</div>
           </div>
         </SidebarInset>
-        <div className="w-80 bg-sidebar p-4 hidden md:block">
+        <div className="w-96 min-w-[20rem] max-w-[40rem] resize-x overflow-auto bg-sidebar p-4 hidden md:block">
           <AIAdvisorPanel />
         </div>
       </SidebarProvider>

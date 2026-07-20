@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
@@ -16,15 +16,19 @@ export type PlannerItem = {
   completed: boolean;
   item_type: string;
   created_at: string;
+  transaction_type: "income" | "expense";
+  payment_method: string;
+  amount: number;
 };
 
 export const usePlannerItems = (
-  itemType?: "task" | "event" | "timeblock"
+  itemType?: "task" | "event" | "timeblock" | "expense"
 ) => {
   const { userId } = useCurrentUser();
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const mutationInProgress = useRef(false);
 
   const fetchItems = useCallback(async () => {
     if (!userId) {
@@ -56,7 +60,8 @@ export const usePlannerItems = (
   }, [fetchItems]);
 
   const addItem = async (data: Partial<PlannerItem>) => {
-    if (!userId) return;
+    if (!userId || mutationInProgress.current) return;
+    mutationInProgress.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -74,11 +79,13 @@ export const usePlannerItems = (
       setError(err?.message ?? "Failed to add item");
     } finally {
       setLoading(false);
+      mutationInProgress.current = false;
     }
   };
 
   const updateItem = async (id: string, data: Partial<PlannerItem>) => {
-    if (!userId) return;
+    if (!userId || mutationInProgress.current) return;
+    mutationInProgress.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -96,11 +103,13 @@ export const usePlannerItems = (
       setError(err?.message ?? "Failed to update item");
     } finally {
       setLoading(false);
+      mutationInProgress.current = false;
     }
   };
 
   const deleteItem = async (id: string) => {
-    if (!userId) return;
+    if (!userId || mutationInProgress.current) return;
+    mutationInProgress.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -115,6 +124,7 @@ export const usePlannerItems = (
       setError(err?.message ?? "Failed to delete item");
     } finally {
       setLoading(false);
+      mutationInProgress.current = false;
     }
   };
 

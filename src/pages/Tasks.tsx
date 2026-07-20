@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, CheckCircle } from "lucide-react";
-import { usePlannerItems } from "@/hooks/usePlannerItems";
+import { Pencil, Trash2, ListTodo } from "lucide-react";
+import { usePlannerItems, type PlannerItem } from "@/hooks/usePlannerItems";
+import { PageHeader } from "@/components/PageHeader";
 
 interface Task {
   id: string;
@@ -21,10 +23,10 @@ interface Task {
   completed: boolean;
 }
 
-const priorityColors = {
-  high: "bg-red-500 text-white",
-  medium: "bg-amber-500 text-white",
-  low: "bg-green-500 text-white",
+const priorityBadgeVariant: Record<Task["priority"], "destructive" | "secondary" | "outline"> = {
+  high: "destructive",
+  medium: "secondary",
+  low: "outline",
 };
 
 const Tasks = () => {
@@ -51,6 +53,8 @@ const Tasks = () => {
     category: "",
     description: "",
   });
+  const [isNewCategorySelected, setIsNewCategorySelected] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   const openAddModal = () => {
     setEditingTask(null);
@@ -62,19 +66,23 @@ const Tasks = () => {
       category: "",
       description: "",
     });
+    setIsNewCategorySelected(false);
+    setNewCategoryName("");
     setModalOpen(true);
   };
 
-  const openEditModal = (task: Task) => {
-    setEditingTask(task);
+  const openEditModal = (task: PlannerItem) => {
+    setEditingTask(task as Task);
     setForm({
       title: task.title,
       item_date: task.item_date,
       start_time: task.start_time,
-      priority: task.priority,
+      priority: task.priority as Task["priority"],
       category: task.category,
       description: task.description,
     });
+    setIsNewCategorySelected(false);
+    setNewCategoryName("");
     setModalOpen(true);
   };
 
@@ -85,16 +93,17 @@ const Tasks = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+  const category = isNewCategorySelected ? newCategoryName.trim() : form.category;
   const payload = {
     title: form.title,
     description: form.description,
     item_date: form.item_date || null,
     start_time: form.start_time || null,
     end_time: null,
-    category: form.category,
+    category,
     priority: form.priority,
     location: null,
-    completed: false,
+    completed: editingTask?.completed ?? false,
     item_type: "task",
   };
     if (editingTask) {
@@ -144,10 +153,14 @@ const Tasks = () => {
 
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-2xl font-bold mb-4">Tasks</h1>
+      <PageHeader
+        title="Tasks"
+        description="Track and prioritize what needs to get done."
+        actions={<Button onClick={openAddModal}>Add Task</Button>}
+      />
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-4 mb-4">
+      <div className="flex flex-wrap items-center gap-3">
         <Input
           type="text"
           placeholder="Search tasks..."
@@ -155,54 +168,49 @@ const Tasks = () => {
           onChange={e => setSearch(e.target.value)}
           className="flex-1 min-w-[200px]"
         />
-        <select
-          value={priorityFilter}
-          onChange={e => setPriorityFilter(e.target.value)}
-          className="border rounded px-2 py-1"
-        >
-          <option value="all">All Priorities</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
-        <select
-          value={projectFilter}
-          onChange={e => setProjectFilter(e.target.value)}
-          className="border rounded px-2 py-1"
-        >
-          <option value="all">All Projects</option>
-          {projects.map(p => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <Button onClick={openAddModal} variant="default">
-          Add Task
-        </Button>
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Priorities</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={projectFilter} onValueChange={setProjectFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Project" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Projects</SelectItem>
+            {projects.map(p => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Task list */}
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {filteredTasks.map(task => (
-          <Card key={task.id} className="flex items-center justify-between p-4">
+          <Card key={task.id} className="flex items-center justify-between p-4 transition-shadow hover:shadow-md">
             <div className="flex items-center space-x-4">
               <Checkbox
                 checked={task.completed}
                 onCheckedChange={() => toggleComplete(task.id)}
               />
-              <div className="flex flex-col">
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs ${priorityColors[task.priority]}`}
-                  >
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant={priorityBadgeVariant[task.priority]} className="capitalize">
                     {task.priority}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700`}
-                  >
-                    {task.category}
-                  </span>
+                  </Badge>
+                  {task.category && (
+                    <Badge variant="outline">{task.category}</Badge>
+                  )}
                 </div>
                 <h3
                   className={`font-medium ${task.completed ? "line-through text-muted-foreground" : ""}`}
@@ -224,6 +232,7 @@ const Tasks = () => {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={`Edit task "${task.title}"`}
                 onClick={() => openEditModal(task)}
               >
                 <Pencil className="h-4 w-4" />
@@ -231,6 +240,7 @@ const Tasks = () => {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={`Delete task "${task.title}"`}
                 onClick={() => deleteTask(task.id)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -239,7 +249,10 @@ const Tasks = () => {
           </Card>
         ))}
         {filteredTasks.length === 0 && (
-          <p className="text-muted-foreground">No tasks found.</p>
+          <Card className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+            <ListTodo className="h-10 w-10 opacity-50" />
+            <p>No tasks found.</p>
+          </Card>
         )}
       </div>
 
@@ -280,22 +293,51 @@ const Tasks = () => {
                 onChange={handleFormChange}
               />
             </div>
-            <select
-              name="priority"
+            <Select
               value={form.priority}
-              onChange={handleFormChange}
-              className="border rounded px-2 py-1"
+              onValueChange={val => setForm(prev => ({ ...prev, priority: val as Task["priority"] }))}
             >
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-            <Input
-              name="category"
-              placeholder="Project / Category"
-              value={form.category}
-              onChange={handleFormChange}
-            />
+              <SelectTrigger>
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={isNewCategorySelected ? "new" : form.category}
+              onValueChange={val => {
+                if (val === "new") {
+                  setIsNewCategorySelected(true);
+                  setNewCategoryName("");
+                } else {
+                  setIsNewCategorySelected(false);
+                  setForm(prev => ({ ...prev, category: val }));
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Project / Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map(p => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
+                ))}
+                <SelectItem value="new">+ Add new project/category...</SelectItem>
+              </SelectContent>
+            </Select>
+            {isNewCategorySelected && (
+              <Input
+                placeholder="New project / category name"
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                required
+              />
+            )}
             <Input
               name="description"
               placeholder="Description"

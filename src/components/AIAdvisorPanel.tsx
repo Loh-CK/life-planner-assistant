@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Upload, Download, Settings, X } from "lucide-react";
 import { ContextScopeSelect, ContextScope } from "@/components/ContextScopeSelect";
+import { usePlannerItems } from "@/hooks/usePlannerItems";
 
 interface SettingsData {
   ollama: {
@@ -45,12 +44,15 @@ type Message = {
 const AIAdvisorPanel = () => {
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [scope, setScope] = useState<string>("Today");
-  const [contextSummary, setContextSummary] = useState<any>({});
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>("");
   const [thinking, setThinking] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { items: events } = usePlannerItems("event");
+  const { items: tasks } = usePlannerItems("task");
+  const { items: expenses } = usePlannerItems("expense");
 
   // Load settings
   useEffect(() => {
@@ -64,87 +66,163 @@ const AIAdvisorPanel = () => {
     }
   }, []);
 
-  // Build context summary when scope changes
-  useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const eventsData = JSON.parse(localStorage.getItem("lifePlannerEvents") ?? "{}");
-    const tasksData = JSON.parse(localStorage.getItem("lifePlannerTasks") ?? "{}");
-    const expensesData = JSON.parse(localStorage.getItem("lifePlannerExpenses") ?? "{}");
+  // Build a context summary for a given scope from live planner data
+  const buildContextSummary = useCallback(
+    (targetScope: string) => {
+      const today = new Date().toISOString().split("T")[0];
 
-    const events = eventsData.events ?? [];
-    const tasks = tasksData.tasks ?? [];
-    const expenses = expensesData.transactions ?? [];
+      const pickEvent = (e: typeof events[number]) => ({
+        title: e.title,
+        date: e.item_date,
+        start_time: e.start_time,
+        end_time: e.end_time,
+        category: e.category,
+      });
+      const pickTask = (t: typeof tasks[number]) => ({
+        title: t.title,
+        due_date: t.item_date,
+        priority: t.priority,
+        category: t.category,
+        completed: t.completed,
+      });
+      const pickExpense = (x: typeof expenses[number]) => ({
+        title: x.title,
+        date: x.item_date,
+        type: x.transaction_type,
+        category: x.category,
+        amount: x.amount,
+      });
 
-    let summary: any = {};
+      const summary: Record<string, unknown> = {};
 
-    switch (scope) {
-      case "Today":
-        summary.events = events.filter((e: any) => e.date === today);
-        summary.tasks = tasks.filter((t: any) => t.dueDate === today);
-        summary.expenses = expenses.filter((e: any) => e.date === today);
-        break;
-      case "Tasks":
-        summary.tasks = tasks;
-        break;
-      case "Finance":
-        summary.expenses = expenses;
-        break;
-      case "Full Planner":
-        summary.events = events;
-        summary.tasks = tasks;
-        summary.expenses = expenses;
-        break;
-      default:
-        summary = {};
-    }
+      switch (targetScope) {
+        case "Today":
+          summary.events = events.filter(e => e.item_date === today).map(pickEvent);
+          summary.tasks = tasks.filter(t => t.item_date === today || !t.completed).map(pickTask);
+          summary.expenses = expenses.filter(x => x.item_date === today).map(pickExpense);
+          break;
+        case "Tasks":
+          summary.tasks = tasks.map(pickTask);
+          break;
+        case "Finance":
+          summary.expenses = expenses.map(pickExpense);
+          break;
+        case "Full Planner":
+          summary.events = events.map(pickEvent);
+          summary.tasks = tasks.map(pickTask);
+          summary.expenses = expenses.map(pickExpense);
+          break;
+      }
 
-    setContextSummary(summary);
-  }, [scope]);
+      return summary;
+    },
+    [events, tasks, expenses]
+  );
+
+  // Context summary for whatever scope is currently selected in the dropdown
+  const contextSummary = useMemo(() => buildContextSummary(scope), [scope, buildContextSummary]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const isTableSeparatorRow = (line: string) =>
+    /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/.test(line.trim());
+
+  const splitTableRow = (line: string) =>
+    line
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map(cell => cell.trim());
+
   const parseMarkdown = (text: string) => {
-    // Bold
-    let html = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-    // Bullet lists
-    const lines = html.split("\n");
-    const processed: string[] = [];
-    let inList = false;
-    lines.forEach(line => {
-      const trimmed = line.trim();
-      if (/^[-*]\s+/.test(trimmed)) {
-        if (!inList) {
-          processed.push("<ul>");
-          inList = true;
-        }
-        processed.push(`<li>${trimmed.replace(/^[-*]\s+/, "")}</li>`);
-      } else {
-        if (inList) {
-          processed.push("</ul>");
-          inList = false;
-        }
-        processed.push(`<p>${trimmed}</p>`);
+    // Bold and inline code
+    const withInline = text
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>");
+
+    const lines = withInline.split("\n");
+    const out: string[] = [];
+    let listType: "ul" | "ol" | null = null;
+
+    const closeList = () => {
+      if (listType) {
+        out.push(listType === "ul" ? "</ul>" : "</ol>");
+        listType = null;
       }
-    });
-    if (inList) processed.push("</ul>");
-    return processed.join("");
+    };
+
+    let i = 0;
+    while (i < lines.length) {
+      const trimmed = lines[i].trim();
+
+      // Markdown table: header row followed by a --- separator row
+      if (trimmed.startsWith("|") && isTableSeparatorRow(lines[i + 1] ?? "")) {
+        closeList();
+        out.push("<table><thead><tr>");
+        splitTableRow(trimmed).forEach(cell => out.push(`<th>${cell}</th>`));
+        out.push("</tr></thead><tbody>");
+        i += 2;
+        while (i < lines.length && lines[i].trim().startsWith("|")) {
+          out.push("<tr>");
+          splitTableRow(lines[i]).forEach(cell => out.push(`<td>${cell}</td>`));
+          out.push("</tr>");
+          i++;
+        }
+        out.push("</tbody></table>");
+        continue;
+      }
+
+      if (/^[-*]\s+/.test(trimmed)) {
+        if (listType !== "ul") {
+          closeList();
+          out.push("<ul>");
+          listType = "ul";
+        }
+        out.push(`<li>${trimmed.replace(/^[-*]\s+/, "")}</li>`);
+        i++;
+        continue;
+      }
+
+      if (/^\d+\.\s+/.test(trimmed)) {
+        if (listType !== "ol") {
+          closeList();
+          out.push("<ol>");
+          listType = "ol";
+        }
+        out.push(`<li>${trimmed.replace(/^\d+\.\s+/, "")}</li>`);
+        i++;
+        continue;
+      }
+
+      closeList();
+      if (trimmed) out.push(`<p>${trimmed}</p>`);
+      i++;
+    }
+    closeList();
+    return out.join("");
   };
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, targetScope: string = scope) => {
     if (!content.trim()) return;
-    const newMessages = [...messages, { role: "user", content }];
+    const newMessages: Message[] = [...messages, { role: "user", content }];
     setMessages(newMessages);
     setInput("");
     setThinking(true);
     setError(null);
 
+    // Use the scope this message was sent for, not the (possibly stale) memoized one —
+    // setScope() from a quick prompt hasn't re-rendered yet when this runs.
+    const summaryForRequest =
+      targetScope === scope ? contextSummary : buildContextSummary(targetScope);
+
     const systemMessage = {
       role: "system",
       content: `You are a helpful personal planning assistant. Use the following context: ${JSON.stringify(
-        contextSummary,
+        summaryForRequest,
         null,
         2
       )}. Respond concisely and help the user with their planning needs.`,
@@ -174,8 +252,9 @@ const AIAdvisorPanel = () => {
     }
   };
 
-  const handleQuickPrompt = (prompt: string) => {
-    sendMessage(prompt);
+  const handleQuickPrompt = (prompt: string, targetScope: ContextScope) => {
+    if (targetScope !== scope) setScope(targetScope);
+    sendMessage(prompt, targetScope);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -188,33 +267,35 @@ const AIAdvisorPanel = () => {
       <CardHeader>
         <CardTitle>AI Advisor</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col p-0">
-        <div className="p-4 flex flex-col space-y-2">
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0">
+        <div className="p-4 flex flex-col space-y-2 shrink-0">
           <Label>Context Scope</Label>
           <ContextScopeSelect value={scope as ContextScope} onValueChange={setScope} />
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => handleQuickPrompt("Plan my day")}>
+            <Button size="sm" onClick={() => handleQuickPrompt("Plan my day", "Today")}>
               Plan my day
             </Button>
-            <Button size="sm" onClick={() => handleQuickPrompt("Prioritize my tasks")}>
+            <Button size="sm" onClick={() => handleQuickPrompt("Prioritize my tasks", "Tasks")}>
               Prioritize my tasks
             </Button>
-            <Button size="sm" onClick={() => handleQuickPrompt("Review my spending")}>
+            <Button size="sm" onClick={() => handleQuickPrompt("Review my spending", "Finance")}>
               Review my spending
             </Button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ maxHeight: "calc(100% - 200px)" }}>
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.role === "assistant" ? "justify-start" : "justify-end"}`}>
-              <div
-                className={`max-w-[70%] rounded-lg p-2 ${
-                  msg.role === "assistant" ? "bg-card text-card-foreground" : "bg-primary text-primary-foreground"
-                }`}
-                dangerouslySetInnerHTML={{
-                  __html: msg.role === "assistant" ? parseMarkdown(msg.content) : msg.content,
-                }}
-              />
+              {msg.role === "assistant" ? (
+                <div
+                  className="advisor-markdown max-w-[85%] rounded-lg p-2 break-words overflow-x-auto bg-card text-card-foreground"
+                  dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.content) }}
+                />
+              ) : (
+                <div className="max-w-[85%] rounded-lg p-2 break-words whitespace-pre-wrap bg-primary text-primary-foreground">
+                  {msg.content}
+                </div>
+              )}
             </div>
           ))}
           {thinking && (
@@ -229,7 +310,7 @@ const AIAdvisorPanel = () => {
           )}
           <div ref={messagesEndRef} />
         </div>
-        <form onSubmit={handleSubmit} className="p-4 border-t">
+        <form onSubmit={handleSubmit} className="p-4 border-t shrink-0">
           <div className="flex space-x-2">
             <Input
               placeholder="Type your message..."

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { KpiCard } from "@/components/KpiCard";
-import { CalendarIcon, ListCheckIcon, DollarSignIcon, TimerIcon, Calendar, CheckCircle, AlertCircle, Clock, Plus } from "lucide-react";
+import { CalendarIcon, ListCheckIcon, DollarSignIcon, TimerIcon, Calendar, CheckCircle, Clock, Plus } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { usePlannerItems as usePlannerItemsHook } from "@/hooks/usePlannerItems";
 
 interface Event {
   id: string;
@@ -57,15 +55,20 @@ const Dashboard = () => {
     addItem: addExpense,
   } = usePlannerItems("expense");
 
-  const { email } = useCurrentUser();
-
   const [focusSessions, setFocusSessions] = useState<any[]>([]);
   const [intention, setIntention] = useState<string>("");
+  const [displayName, setDisplayName] = useState<string>("");
 
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("lifePlannerData") ?? "{}") as any;
     setFocusSessions(data.focusSessions ?? []);
     setIntention(data.intention ?? '');
+    try {
+      const settings = JSON.parse(localStorage.getItem("lifePlannerSettings") ?? "{}");
+      setDisplayName(settings?.preferences?.displayName ?? "");
+    } catch {
+      setDisplayName("");
+    }
   }, []);
 
   useEffect(() => {
@@ -128,6 +131,11 @@ const Dashboard = () => {
   const completedToday = todaysTasks.filter((t) => t.completed).length;
   const totalToday = todaysTasks.length;
 
+  const todaysAgenda = [
+    ...events.filter((e) => e.item_date === today),
+    ...tasks.filter((t) => t.item_date === today),
+  ].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
+
   // Compute this month's spending from expenses
   const monthStart = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-01`;
   const monthEnd = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-31`;
@@ -152,7 +160,7 @@ const Dashboard = () => {
     return (
       <div className="p-4 flex justify-center items-center h-64">
         <span className="text-destructive">
-          {eventsError?.message ?? tasksError?.message ?? expensesError?.message ?? "Error loading data"}
+          {eventsError ?? tasksError ?? expensesError ?? "Error loading data"}
         </span>
       </div>
     );
@@ -160,16 +168,23 @@ const Dashboard = () => {
 
   return (
     <div className="p-4 space-y-6">
-      <div className="flex items-center space-x-2">
-        <h1 className="text-2xl font-semibold">{greeting}</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {greeting}{displayName ? `, ${displayName}` : ""}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          {now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+        </p>
       </div>
 
-      <Card className="flex items-center p-4">
-        <Clock className="h-6 w-6 mr-2 text-primary" />
+      <Card className="flex items-center gap-3 p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <Clock className="h-5 w-5" />
+        </div>
         {nextItem ? (
-          <>
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{nextItem.title}</span>
-            <Badge variant="secondary" className="ml-2 flex items-center space-x-1">
+            <Badge variant="secondary" className="flex items-center gap-1">
               {nextItem.item_type === "event" ? (
                 <CalendarIcon className="h-3 w-3" />
               ) : (
@@ -177,7 +192,7 @@ const Dashboard = () => {
               )}
               <span>{nextItem.item_type === "event" ? "Event" : "Task"}</span>
             </Badge>
-            <span className="ml-2 text-muted-foreground">
+            <span className="text-muted-foreground">
               {nextItem.datetime!.toLocaleDateString(undefined, {
                 month: "short",
                 day: "numeric",
@@ -191,7 +206,7 @@ const Dashboard = () => {
                   })}`
                 : ` (${formatCountdown(nextItem.datetime!)})`}
             </span>
-          </>
+          </div>
         ) : (
           <span className="text-muted-foreground">
             Nothing on the horizon — enjoy the calm, or plan something!
@@ -199,20 +214,22 @@ const Dashboard = () => {
         )}
       </Card>
 
-      <div className="flex space-x-2 overflow-x-auto">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         {weekDays.map((d) => {
           const dStr = d.toISOString().split("T")[0];
           const isToday = dStr === today;
           return (
             <div
               key={dStr}
-              className={`flex flex-col items-center p-2 rounded ${
-                isToday ? "bg-primary text-primary-foreground" : "bg-card"
+              className={`flex flex-col items-center gap-1 rounded-lg px-3 py-2 min-w-[3.5rem] border transition-colors ${
+                isToday
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card border-border hover:bg-muted/50"
               }`}
             >
-              <span className="text-xs">{d.toLocaleDateString(undefined, { weekday: "short" })}</span>
-              <span className="font-medium">{d.getDate()}</span>
-              <Badge variant="secondary" className="mt-1">
+              <span className="text-xs opacity-80">{d.toLocaleDateString(undefined, { weekday: "short" })}</span>
+              <span className="font-semibold">{d.getDate()}</span>
+              <Badge variant={isToday ? "outline" : "secondary"} className={isToday ? "border-primary-foreground/40 text-primary-foreground" : ""}>
                 {countForDay(d)}
               </Badge>
             </div>
@@ -234,22 +251,42 @@ const Dashboard = () => {
               <CardTitle>Today's Schedule</CardTitle>
             </CardHeader>
             <CardContent>
-              {events.filter(e => e.item_date === today).length ? (
+              {todaysAgenda.length ? (
                 <ul className="space-y-2">
-                  {events
-                    .filter(e => e.item_date === today)
-                    .sort((a, b) => a.start_time.localeCompare(b.start_time))
-                    .map(e => (
-                      <li key={e.id} className="p-2 bg-card rounded">
-                        <strong>{e.title}</strong> <br/>
-                        {e.start_time} – {e.end_time}
-                      </li>
-                    ))}
+                  {todaysAgenda.map(item => (
+                    <li
+                      key={item.id}
+                      className="flex items-center justify-between gap-2 p-3 bg-muted/40 hover:bg-muted/70 rounded-md transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className={`font-medium truncate ${item.item_type === "task" && item.completed ? "line-through text-muted-foreground" : ""}`}>
+                          {item.title}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {item.item_type === "event"
+                            ? item.start_time
+                              ? `${item.start_time} – ${item.end_time}`
+                              : "No time set"
+                            : item.start_time
+                              ? `Due at ${item.start_time}`
+                              : "No time set"}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="shrink-0 flex items-center gap-1">
+                        {item.item_type === "event" ? (
+                          <CalendarIcon className="h-3 w-3" />
+                        ) : (
+                          <CheckCircle className="h-3 w-3" />
+                        )}
+                        <span>{item.item_type === "event" ? "Event" : "Task"}</span>
+                      </Badge>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <div className="flex items-center space-x-2 text-muted-foreground">
                   <Calendar className="h-5 w-5" />
-                  <span>No events scheduled for today.</span>
+                  <span>Nothing scheduled for today.</span>
                 </div>
               )}
             </CardContent>
@@ -271,8 +308,14 @@ const Dashboard = () => {
                       return order[a.priority] - order[b.priority];
                     })
                     .map(t => (
-                      <li key={t.id} className="p-2 bg-card rounded">
-                        <strong>{t.title}</strong> (Priority {t.priority})
+                      <li key={t.id} className="flex items-center justify-between gap-2 p-3 bg-muted/40 hover:bg-muted/70 rounded-md transition-colors">
+                        <span className="font-medium truncate">{t.title}</span>
+                        <Badge
+                          variant={t.priority === "high" ? "destructive" : t.priority === "medium" ? "secondary" : "outline"}
+                          className="shrink-0 capitalize"
+                        >
+                          {t.priority}
+                        </Badge>
                       </li>
                     ))}
                 </ul>
@@ -292,10 +335,9 @@ const Dashboard = () => {
               <CardTitle>Daily Intention</CardTitle>
             </CardHeader>
             <CardContent>
-              <input
+              <Input
                 type="text"
                 placeholder="Write one sentence for today"
-                className="w-full p-2 border rounded"
                 value={intention}
                 onChange={e => setIntention(e.target.value)}
               />

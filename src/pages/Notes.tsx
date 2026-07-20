@@ -3,7 +3,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, StickyNote } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 interface Note {
   id: string;
@@ -19,8 +20,15 @@ const Notes = () => {
 
   // Load notes from localStorage
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("lifePlannerNotes") ?? "{}") as any;
-    setNotes(stored.notes ?? []);
+    try {
+      const stored = JSON.parse(localStorage.getItem("lifePlannerNotes") ?? "{}") as { notes?: Note[] };
+      const uniqueNotes = Array.from(
+        new Map((stored.notes ?? []).filter(note => note?.id).map(note => [note.id, note])).values(),
+      );
+      setNotes(uniqueNotes);
+    } catch {
+      setNotes([]);
+    }
   }, []);
 
   // Persist notes
@@ -66,13 +74,16 @@ const Notes = () => {
 
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-2xl font-bold mb-4">Notes</h1>
+      <PageHeader
+        title="Notes"
+        description="Jot down quick thoughts, saved locally on this device."
+      />
       <div className="flex h-[70vh] gap-4">
         {/* Notes list */}
         <div className="w-1/3 overflow-y-auto border rounded-md">
           <div className="flex items-center justify-between p-2 border-b">
-            <h2 className="text-lg font-medium">All Notes</h2>
-            <Button size="icon" variant="outline" onClick={createNew}>
+            <h2 className="text-sm font-semibold text-muted-foreground">All Notes</h2>
+            <Button size="icon" variant="ghost" aria-label="New note" onClick={createNew}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -80,19 +91,20 @@ const Notes = () => {
             {notes.map(note => (
               <li
                 key={note.id}
-                className={`p-2 cursor-pointer hover:bg-accent hover:text-accent-foreground ${
-                  note.id === selectedId ? "bg-accent" : ""
+                className={`p-3 cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground ${
+                  note.id === selectedId ? "bg-accent text-accent-foreground" : ""
                 }`}
                 onClick={() => setSelectedId(note.id)}
               >
-                <div className="font-medium">{note.title || "Untitled"}</div>
+                <div className="font-medium truncate">{note.title || "Untitled"}</div>
                 <p className="text-sm text-muted-foreground truncate">
                   {note.body.slice(0, 50)}{note.body.length > 50 ? "…" : ""}
                 </p>
               </li>
             ))}
             {notes.length === 0 && (
-              <li className="p-4 text-center text-muted-foreground">
+              <li className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
+                <StickyNote className="h-8 w-8 opacity-50" />
                 No notes yet. Click + to create one.
               </li>
             )}
@@ -104,7 +116,7 @@ const Notes = () => {
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-medium">Editor</h2>
             {selectedNote && (
-              <Button variant="destructive" size="icon" onClick={deleteSelected}>
+              <Button variant="destructive" size="icon" aria-label="Delete note" onClick={deleteSelected}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}

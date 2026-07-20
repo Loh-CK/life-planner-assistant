@@ -5,11 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Plus, Calendar, DollarSign, ArrowRight, Pencil, Trash2, Tag } from "lucide-react";
+import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { Plus, DollarSign, Download, Pencil, Trash2, Tag, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
 import { useBudgets } from "@/hooks/useBudgets";
-import { Progress } from "@/components/ui/progress";
+import { PageHeader } from "@/components/PageHeader";
 
 interface Transaction {
   id: string;
@@ -89,7 +89,7 @@ const Expenses = () => {
     return (
       <div className="p-4 flex justify-center items-center h-64">
         <span className="text-destructive">
-          {txError?.message ?? budgetsError?.message ?? "Error loading data"}
+          {txError ?? budgetsError ?? "Error loading data"}
         </span>
       </div>
     );
@@ -106,9 +106,7 @@ const Expenses = () => {
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newTrans: Transaction = {
-      ...transForm,
-    };
+    const newTrans = { ...transForm, item_type: "expense" as const };
     await addTx(newTrans);
     setShowTransModal(false);
     setTransForm({
@@ -154,7 +152,7 @@ const Expenses = () => {
     .reduce((sum, t) => sum + t.amount, 0);
   const balance = totalIncome - totalExpense;
 
-  // Spending per category
+  // Spending per category (used for budget progress bars)
   const spendingByCategory: Record<string, number> = {};
   monthTransactions
     .filter(t => t.transaction_type === "expense")
@@ -162,19 +160,12 @@ const Expenses = () => {
       spendingByCategory[t.category] = (spendingByCategory[t.category] ?? 0) + t.amount;
     });
 
-  const chartData = Object.keys(spendingByCategory).map(cat => ({
-    category: cat,
-    spent: spendingByCategory[cat],
-    budget: budgets.find(b => b.category === cat)?.monthly_limit ?? 0,
-  }));
-
   // Merge categories from transactions and budgets
   const categories = Array.from(new Set([
     ...transactions.map(t => t.category),
     ...budgets.map(b => b.category),
   ]));
 
-  // Data for Income vs Expenses stat card
   const incomeExpenseData = [
     { name: "Income", value: totalIncome },
     { name: "Expense", value: totalExpense },
@@ -204,48 +195,136 @@ const Expenses = () => {
     setShowBudgetModal(true);
   };
 
+  const escapeCsvField = (value: string) => {
+    if (/[",\n]/.test(value)) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  };
+
+  const exportCsv = () => {
+    const headers = ["Date", "Type", "Category", "Title", "Payment Method", "Amount"];
+    const rows = monthTransactions.map(t => [
+      t.item_date ?? "",
+      t.transaction_type,
+      t.category,
+      t.title,
+      t.payment_method,
+      t.amount.toFixed(2),
+    ]);
+    const csv = [headers, ...rows]
+      .map(row => row.map(field => escapeCsvField(String(field))).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transactions-${selectedMonth}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Expenses</h1>
-        <div className="flex items-center space-x-2">
-          <Select onValueChange={setSelectedMonth} value={selectedMonth}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select month" />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 12 }, (_, i) => {
-                const d = new Date();
-                d.setMonth(d.getMonth() - i);
-                const val = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
-                return <SelectItem key={val} value={val}>{val}</SelectItem>;
-              })}
-            </SelectContent>
-          </Select>
-          <Button onClick={() => setShowTransModal(true)} variant="default">
-            <Plus className="h-4 w-4 mr-2" /> Add Transaction
-          </Button>
-          <Button onClick={() => setShowBudgetModal(true)} variant="outline">
-            Set Category Budget
-          </Button>
-        </div>
+      <PageHeader
+        title="Expenses"
+        description="Track income, spending, and budgets by category."
+        actions={
+          <>
+            <Select onValueChange={setSelectedMonth} value={selectedMonth}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => {
+                  const d = new Date();
+                  d.setMonth(d.getMonth() - i);
+                  const val = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+                  return <SelectItem key={val} value={val}>{val}</SelectItem>;
+                })}
+              </SelectContent>
+            </Select>
+            <Button onClick={() => setShowTransModal(true)} variant="default">
+              <Plus className="h-4 w-4 mr-2" /> Add Transaction
+            </Button>
+            <Button onClick={() => setShowBudgetModal(true)} variant="outline">
+              Set Category Budget
+            </Button>
+            <Button
+              onClick={exportCsv}
+              variant="outline"
+              disabled={monthTransactions.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
+          </>
+        }
+      />
+
+      {/* Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="transition-shadow hover:shadow-md">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Income</p>
+              <p className="text-2xl font-bold text-emerald-600">${totalIncome.toFixed(2)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="transition-shadow hover:shadow-md">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-rose-600">
+              <TrendingDown className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
+              <p className="text-2xl font-bold text-rose-600">${totalExpense.toFixed(2)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="transition-shadow hover:shadow-md">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${balance >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"}`}>
+              <Wallet className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Balance</p>
+              <p className={`text-2xl font-bold ${balance >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                ${balance.toFixed(2)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Income vs Expenses stat card */}
+      {/* Chart */}
       <Card>
         <CardHeader>
           <CardTitle>Income vs Expenses</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={incomeExpenseData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="value" fill="#3b82f6" name="Amount" />
-            </BarChart>
-          </ResponsiveContainer>
+          {totalIncome > 0 || totalExpense > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={incomeExpenseData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" name="Amount" radius={[4, 4, 0, 0]}>
+                  {incomeExpenseData.map(entry => (
+                    <Cell key={entry.name} fill={entry.name === "Income" ? "#10B981" : "#EF4444"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <DollarSign className="h-12 w-12 mb-4 opacity-50" />
+              <p>No transactions this month yet to chart.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -268,12 +347,13 @@ const Expenses = () => {
                 const percentUsed = (spent / budget.monthly_limit) * 100;
                 const cappedPercent = Math.min(percentUsed, 100);
                 return (
-                  <Card key={budget.category} className="relative p-4 rounded-lg shadow-sm">
+                  <Card key={budget.category} className="relative p-4 transition-shadow hover:shadow-md">
                     {/* Action icons */}
                     <div className="absolute top-2 right-2 flex space-x-1 opacity-0 hover:opacity-100 transition-opacity">
                       <Button
                         variant="ghost"
                         size="sm"
+                        aria-label={`Edit ${budget.category} budget`}
                         onClick={() => openEditBudget(budget)}
                         className="p-1"
                       >
@@ -282,6 +362,7 @@ const Expenses = () => {
                       <Button
                         variant="ghost"
                         size="sm"
+                        aria-label={`Delete ${budget.category} budget`}
                         onClick={() => deleteBudget(budget.category)}
                         className="p-1"
                       >
@@ -296,9 +377,9 @@ const Expenses = () => {
                     </div>
 
                     {/* Progress bar */}
-                    <div className="w-full h-4 rounded-full bg-gray-200 mt-2">
+                    <div className="w-full h-2.5 rounded-full bg-muted mt-2">
                       <div
-                        className="h-full rounded-full"
+                        className="h-full rounded-full transition-all"
                         style={{
                           width: `${cappedPercent}%`,
                           backgroundColor: getProgressColor(percentUsed),
@@ -324,7 +405,7 @@ const Expenses = () => {
                   {categoriesWithoutBudget.map(cat => {
                     const spent = spendingByCategory[cat] ?? 0;
                     return (
-                      <Card key={cat} className="relative p-4 rounded-lg shadow-sm border-dashed border border-gray-300 text-muted-foreground">
+                      <Card key={cat} className="relative p-4 border-dashed text-muted-foreground">
                         {/* Action button */}
                         <div className="absolute top-2 right-2">
                           <Button
@@ -354,36 +435,6 @@ const Expenses = () => {
         </CardContent>
       </Card>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Income</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600">${totalIncome.toFixed(2)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Expenses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-red-600">${totalExpense.toFixed(2)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Balance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-2xl font-bold ${balance >= 0 ? "text-green-600" : "text-red-600"}`}>
-              ${balance.toFixed(2)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Table */}
       <Card>
         <CardHeader>
@@ -410,7 +461,7 @@ const Expenses = () => {
                   <TableCell>{t.title}</TableCell>
                   <TableCell>{t.payment_method}</TableCell>
                   <TableCell className="text-right">
-                    <span className={t.transaction_type === "income" ? "text-green-600" : "text-red-600"}>
+                    <span className={t.transaction_type === "income" ? "text-emerald-600" : "text-rose-600"}>
                       ${t.amount.toFixed(2)}
                     </span>
                   </TableCell>
@@ -427,27 +478,6 @@ const Expenses = () => {
           </Table>
         </CardContent>
       </Card>
-
-      {/* Bar Chart */}
-      {chartData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Spending vs Budget by Category</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis dataKey="category" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="spent" fill="#EF4444" name="Spent" />
-                <Bar dataKey="budget" fill="#10B981" name="Budget" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Transaction Modal */}
       <Dialog open={showTransModal} onOpenChange={setShowTransModal}>

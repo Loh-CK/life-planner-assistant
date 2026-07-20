@@ -140,7 +140,7 @@ const Pomodoro = () => {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           Pomodoro Timer
-          <Button variant="ghost" size="icon" onClick={toggleSettings}>
+          <Button variant="ghost" size="icon" aria-label="Timer settings" onClick={toggleSettings}>
             <Settings className="h-4 w-4" />
           </Button>
         </CardTitle>
@@ -158,7 +158,7 @@ const Pomodoro = () => {
           {(["focus", "short", "long"] as Mode[]).map(m => (
             <Button
               key={m}
-              variant={mode === m ? "primary" : "outline"}
+              variant={mode === m ? "default" : "outline"}
               onClick={() => {
                 setMode(m);
                 setRunning(false);

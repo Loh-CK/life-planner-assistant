@@ -26,6 +26,7 @@ interface Event {
   end_time: string; // HH:mm
   category: string;
   location: string;
+  completed: boolean;
 }
 
 const DAY_START = 6;
@@ -52,6 +53,7 @@ const Calendar = () => {
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [form, setForm] = useState({
     title: "",
     item_date: "",
@@ -86,8 +88,13 @@ const Calendar = () => {
       completed: false,
       item_type: "event",
     };
-    await addItem(payload);
+    if (editingEvent) {
+      await updateItem(editingEvent.id, { ...payload, completed: editingEvent.completed });
+    } else {
+      await addItem(payload);
+    }
     setShowModal(false);
+    setEditingEvent(null);
     setForm({
       title: "",
       item_date: "",
@@ -99,6 +106,7 @@ const Calendar = () => {
   };
 
   const openAddModal = (dateStr?: string, start?: string, end?: string) => {
+    setEditingEvent(null);
     setForm({
       title: "",
       item_date: dateStr ?? "",
@@ -111,6 +119,7 @@ const Calendar = () => {
   };
 
   const openEditModal = (event: Event) => {
+    setEditingEvent(event);
     setForm({
       title: event.title,
       item_date: event.item_date,
@@ -232,9 +241,32 @@ const Calendar = () => {
   return (
     <div className="flex h-full">
       <div className="flex-1 p-4 flex flex-col">
-        {/* View toggle */}
+        {/* Month / Week toggle */}
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
+          <div className="inline-flex rounded-md border p-0.5">
+            <Button
+              variant={viewMode === "month" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-sm"
+              onClick={() => setViewMode("month")}
+            >
+              Month
+            </Button>
+            <Button
+              variant={viewMode === "week" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-sm"
+              onClick={() => setViewMode("week")}
+            >
+              Week
+            </Button>
+          </div>
+        </div>
+
+        {viewMode === "month" && (
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="icon" onClick={handleMonthPrev}>
+          <Button variant="ghost" size="icon" aria-label="Previous month" onClick={handleMonthPrev}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center space-x-2">
@@ -246,10 +278,11 @@ const Calendar = () => {
               <CalendarIcon className="h-4 w-4 mr-1" /> Today
             </Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleMonthNext}>
+          <Button variant="ghost" size="icon" aria-label="Next month" onClick={handleMonthNext}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+        )}
 
         {viewMode === "month" ? (
           <>
@@ -311,7 +344,7 @@ const Calendar = () => {
         ) : (
           <>
             <div className="flex items-center justify-between mb-4">
-              <Button variant="ghost" size="icon" onClick={handleWeekPrev}>
+              <Button variant="ghost" size="icon" aria-label="Previous week" onClick={handleWeekPrev}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="flex items-center space-x-2">
@@ -320,7 +353,7 @@ const Calendar = () => {
                   <CalendarIcon className="h-4 w-4 mr-1" /> Today
                 </Button>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleWeekNext}>
+              <Button variant="ghost" size="icon" aria-label="Next week" onClick={handleWeekNext}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -424,6 +457,7 @@ const Calendar = () => {
                             onClick={(ev) => {
                               ev.stopPropagation();
                               setSelectedDate(dateStr);
+                              openEditModal(e);
                             }}
                           >
                             <div className="font-medium truncate">
@@ -480,7 +514,7 @@ const Calendar = () => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Event</DialogTitle>
+              <DialogTitle>{editingEvent ? "Edit Event" : "Create New Event"}</DialogTitle>
               <DialogDescription>Fill in the details below.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -525,7 +559,7 @@ const Calendar = () => {
                 onChange={handleFormChange}
               />
               <DialogFooter>
-                <Button type="submit">Save</Button>
+                <Button type="submit">{editingEvent ? "Save changes" : "Create event"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>

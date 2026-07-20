@@ -14,6 +14,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, CheckCircle, XCircle, Calendar as CalendarIcon } from "lucide-react";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
+import { PageHeader } from "@/components/PageHeader";
 
 interface TimeBlock {
   id: string;
@@ -33,7 +34,7 @@ const HOUR_HEIGHT = 75; // pixels per hour (increased for breathing room)
 const categoryColors: Record<string, string> = {
   work: "bg-primary",
   personal: "bg-secondary",
-  health: "bg-green-200",
+  health: "bg-green-400",
 };
 
 const DayPlanner = () => {
@@ -153,16 +154,21 @@ const DayPlanner = () => {
 
   return (
     <div className="flex flex-col h-full p-4 space-y-4">
-      {/* Date picker */}
-      <div className="flex items-center space-x-2">
-        <Input
-          type="date"
-          value={selectedDate}
-          onChange={handleDateChange}
-          className="w-48"
-        />
-        <CalendarIcon className="h-4 w-4" />
-      </div>
+      <PageHeader
+        title="Day Planner"
+        description="Block out your day, hour by hour."
+        actions={
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={handleDateChange}
+              className="w-48"
+            />
+          </div>
+        }
+      />
 
       {/* Timeline container */}
       <div
@@ -193,7 +199,7 @@ const DayPlanner = () => {
           return (
             <div
               key={hour}
-              className={`absolute left-16 right-0 h-[75px] top-[${topOffset}px] ${
+              className={`absolute left-16 right-0 h-[75px] ${
                 isAlternate ? "bg-muted/10" : ""
               }`}
               style={{ top: `${topOffset}px` }}
@@ -209,9 +215,9 @@ const DayPlanner = () => {
                 setShowModal(true);
               }}
             >
-              <div className="h-full w-full border-dashed border-2 border-gray-300 rounded-md flex items-center justify-center hover:bg-gray-100 transition-colors">
-                <Plus className="h-6 w-6 mr-2 text-primary" />
-                <span className="text-sm font-medium text-primary">Add</span>
+              <div className="h-full w-full border-dashed border-2 border-muted-foreground/30 rounded-md flex items-center justify-center hover:bg-muted/50 transition-colors group">
+                <Plus className="h-6 w-6 mr-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">Add</span>
               </div>
             </div>
           );
@@ -233,7 +239,7 @@ const DayPlanner = () => {
           return (
             <div
               key={block.id}
-              className={`absolute left-16 right-0 top-[${top}px] h-[${height}px] ${bgClass} rounded-md border-l-4 border-primary cursor-pointer transition-opacity ${
+              className={`absolute left-16 right-0 ${bgClass} text-white rounded-md border-l-4 border-primary cursor-pointer shadow-sm transition-opacity hover:opacity-90 ${
                 block.completed ? "opacity-50" : ""
               }`}
               style={{ top: `${top}px`, height: `${height}px` }}
@@ -250,6 +256,7 @@ const DayPlanner = () => {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`Delete "${block.title}"`}
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteBlock(block.id);
@@ -260,11 +267,11 @@ const DayPlanner = () => {
                     </Button>
                   </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-white/80">
                   {block.start_time} – {block.end_time}
                 </div>
                 {block.description && (
-                  <div className="text-xs text-muted-foreground">{block.description}</div>
+                  <div className="text-xs text-white/80">{block.description}</div>
                 )}
                 {block.completed && (
                   <div className="absolute top-1 left-1">
