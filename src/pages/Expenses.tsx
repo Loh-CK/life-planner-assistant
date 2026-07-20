@@ -100,7 +100,10 @@ const Expenses = () => {
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addTx(transForm);
+    const newTrans: Transaction = {
+      ...transForm,
+    };
+    await addTx(newTrans);
     setShowTransModal(false);
     setTransForm({
       item_date: null,
@@ -159,6 +162,12 @@ const Expenses = () => {
 
   const categories = Array.from(new Set(transactions.map(t => t.category)));
 
+  // Data for Income vs Expenses stat card
+  const incomeExpenseData = [
+    { name: "Income", value: totalIncome },
+    { name: "Expense", value: totalExpense },
+  ];
+
   return (
     <div className="p-4 space-y-6">
       <div className="flex items-center justify-between">
@@ -185,6 +194,24 @@ const Expenses = () => {
           </Button>
         </div>
       </div>
+
+      {/* Income vs Expenses stat card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Income vs Expenses</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={incomeExpenseData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="value" fill="#3b82f6" name="Amount" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

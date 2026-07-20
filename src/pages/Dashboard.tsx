@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { usePlannerItems as usePlannerItemsHook } from "@/hooks/usePlannerItems";
 
 interface Event {
   id: string;
@@ -49,15 +50,20 @@ const Dashboard = () => {
     addItem: addTask,
   } = usePlannerItems("task");
 
+  const {
+    items: expenses,
+    loading: expensesLoading,
+    error: expensesError,
+    addItem: addExpense,
+  } = usePlannerItems("expense");
+
   const { email } = useCurrentUser();
 
-  const [expenses, setExpenses] = useState<any[]>([]);
   const [focusSessions, setFocusSessions] = useState<any[]>([]);
   const [intention, setIntention] = useState<string>("");
 
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("lifePlannerData") ?? "{}") as any;
-    setExpenses(data.expenses ?? []);
     setFocusSessions(data.focusSessions ?? []);
     setIntention(data.intention ?? '');
   }, []);
@@ -65,9 +71,9 @@ const Dashboard = () => {
   useEffect(() => {
     localStorage.setItem(
       "lifePlannerData",
-      JSON.stringify({ events, tasks, expenses, focusSessions, intention })
+      JSON.stringify({ events, tasks, focusSessions, intention })
     );
-  }, [events, tasks, expenses, focusSessions, intention]);
+  }, [events, tasks, focusSessions, intention]);
 
   const now = new Date();
   const today = now.toISOString().split("T")[0];
@@ -122,7 +128,19 @@ const Dashboard = () => {
   const completedToday = todaysTasks.filter((t) => t.completed).length;
   const totalToday = todaysTasks.length;
 
-  if (eventsLoading || tasksLoading) {
+  // Compute this month's spending from expenses
+  const monthStart = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-01`;
+  const monthEnd = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-31`;
+  const thisMonthSpending = expenses
+    .filter(
+      (e) =>
+        e.transaction_type === "expense" &&
+        e.item_date >= monthStart &&
+        e.item_date <= monthEnd
+    )
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  if (eventsLoading || tasksLoading || expensesLoading) {
     return (
       <div className="p-4 flex justify-center items-center h-64">
         <span className="text-muted-foreground">Loading dashboard…</span>
@@ -130,11 +148,11 @@ const Dashboard = () => {
     );
   }
 
-  if (eventsError || tasksError) {
+  if (eventsError || tasksError || expensesError) {
     return (
       <div className="p-4 flex justify-center items-center h-64">
         <span className="text-destructive">
-          {eventsError?.message ?? tasksError?.message ?? "Error loading data"}
+          {eventsError?.message ?? tasksError?.message ?? expensesError?.message ?? "Error loading data"}
         </span>
       </div>
     );
@@ -143,7 +161,7 @@ const Dashboard = () => {
   return (
     <div className="p-4 space-y-6">
       <div className="flex items-center space-x-2">
-        <h2 className="text-2xl font-semibold">{greeting}</h2>
+        <h1 className="text-2xl font-semibold">{greeting}</h1>
       </div>
 
       <Card className="flex items-center p-4">
@@ -205,7 +223,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <KpiCard title="Today's Events" value={events.filter(e => e.item_date === today).length} icon={<CalendarIcon />} />
         <KpiCard title="Open Tasks" value={tasks.filter(t => !t.completed).length} icon={<ListCheckIcon />} />
-        <KpiCard title="This Month's Spending" value={`$${expenses.reduce((sum, e) => sum + e.amount, 0)}`} icon={<DollarSignIcon />} />
+        <KpiCard title="This Month's Spending" value={`$${thisMonthSpending}`} icon={<DollarSignIcon />} />
         <KpiCard title="Focus Sessions Today" value={focusSessions.filter(f => f.date === today).length} icon={<TimerIcon />} />
       </div>
 
