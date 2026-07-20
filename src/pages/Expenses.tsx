@@ -6,9 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Plus, Calendar, DollarSign, ArrowRight } from "lucide-react";
+import { Plus, Calendar, DollarSign, ArrowRight, Pencil, Trash2 } from "lucide-react";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
 import { useBudgets } from "@/hooks/useBudgets";
+import { Progress } from "@/components/ui/progress";
 
 interface Transaction {
   id: string;
@@ -168,6 +169,23 @@ const Expenses = () => {
     { name: "Expense", value: totalExpense },
   ];
 
+  // Helper to open edit budget dialog
+  const openEditBudget = (budget: Budget) => {
+    setBudgetForm({ category: budget.category, amount: budget.monthly_limit });
+    setShowBudgetModal(true);
+  };
+
+  // Helper to open set budget for a category (new or existing)
+  const openSetBudget = (category: string, amount: number = 0) => {
+    setBudgetForm({ category, amount });
+    setShowBudgetModal(true);
+  };
+
+  // Categories with spending but no budget
+  const categoriesWithoutBudget = categories.filter(
+    cat => !budgets.some(b => b.category === cat)
+  );
+
   return (
     <div className="p-4 space-y-6">
       <div className="flex items-center justify-between">
@@ -210,6 +228,98 @@ const Expenses = () => {
               <Bar dataKey="value" fill="#3b82f6" name="Amount" />
             </BarChart>
           </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Budgets section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Budgets</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {budgets.length === 0 && (
+            <p className="text-muted-foreground">No budgets set.</p>
+          )}
+          {budgets.map(budget => {
+            const spent = spendingByCategory[budget.category] ?? 0;
+            const remaining = budget.monthly_limit - spent;
+            const percentUsed = (spent / budget.monthly_limit) * 100;
+            const cappedPercent = Math.min(percentUsed, 100);
+            return (
+              <div key={budget.category} className="flex flex-col gap-2 border-b pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium">{budget.category}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Monthly limit: ${budget.monthly_limit.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openEditBudget(budget)}
+                      className="p-1"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => deleteBudget(budget.category)}
+                      className="p-1"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm">
+                      Spent: ${spent.toFixed(2)} | Remaining:{" "}
+                      <span className={remaining >= 0 ? "text-green-600" : "text-red-600"}>
+                        ${remaining.toFixed(2)}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="w-48">
+                    <Progress value={cappedPercent} />
+                    {percentUsed > 100 && (
+                      <p className="text-xs text-right text-red-600">
+                        {percentUsed.toFixed(0)}% used
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {categoriesWithoutBudget.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-medium mb-2">No budget set</h4>
+              {categoriesWithoutBudget.map(cat => {
+                const spent = spendingByCategory[cat] ?? 0;
+                return (
+                  <div key={cat} className="flex items-center justify-between p-2 border rounded-md mb-2">
+                    <div>
+                      <p className="font-medium">{cat}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Spent: ${spent.toFixed(2)}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openSetBudget(cat)}
+                    >
+                      Set Budget
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
