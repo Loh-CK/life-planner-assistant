@@ -176,7 +176,11 @@ const Expenses = () => {
     budget: budgets.find(b => b.category === cat)?.monthly_limit ?? 0,
   }));
 
-  const categories = Array.from(new Set(transactions.map(t => t.category)));
+  // Merge categories from transactions and budgets
+  const categories = Array.from(new Set([
+    ...transactions.map(t => t.category),
+    ...budgets.map(b => b.category),
+  ]));
 
   // Data for Income vs Expenses stat card
   const incomeExpenseData = [
@@ -189,6 +193,23 @@ const Expenses = () => {
     if (percent > 100) return "#dc2626"; // red
     if (percent > 70) return "#f97316"; // amber/orange
     return "#10b981"; // green
+  };
+
+  // Helper functions and derived data for budgets section
+  const categoriesWithoutBudget = categories.filter(
+    cat => !budgets.some(b => b.category === cat)
+  );
+
+  const openEditBudget = (budget: Budget) => {
+    setBudgetForm({ category: budget.category, amount: budget.monthly_limit });
+    setIsNewCategorySelectedBudget(false);
+    setShowBudgetModal(true);
+  };
+
+  const openSetBudget = (category: string, amount: number = 0) => {
+    setBudgetForm({ category, amount });
+    setIsNewCategorySelectedBudget(false);
+    setShowBudgetModal(true);
   };
 
   return (
