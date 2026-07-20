@@ -7,24 +7,46 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Plus, Calendar, DollarSign, ArrowRight } from "lucide-react";
+import { usePlannerItems } from "@/hooks/usePlannerItems";
+import { useBudgets } from "@/hooks/useBudgets";
 
 interface Transaction {
   id: string;
-  date: string; // YYYY-MM-DD
-  type: "income" | "expense";
+  item_date: string | null;
+  transaction_type: "income" | "expense";
   category: string;
-  description: string;
-  paymentMethod: string;
+  title: string;
+  payment_method: string;
   amount: number;
 }
 
 interface Budget {
-  [category: string]: number;
+  id: string;
+  user_id: string;
+  category: string;
+  monthly_limit: number;
+  updated_at: string;
 }
 
 const Expenses = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [budgets, setBudgets] = useState<Budget>({});
+  // Supabase hooks
+  const {
+    items: transactions,
+    loading: txLoading,
+    error: txError,
+    addItem: addTx,
+    updateItem: updateTx,
+    deleteItem: deleteTx,
+  } = usePlannerItems("expense");
+
+  const {
+    budgets,
+    loading: budgetsLoading,
+    error: budgetsError,
+    setBudget,
+    deleteBudget,
+  } = useBudgets();
+
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
@@ -32,11 +54,11 @@ const Expenses = () => {
 
   const [showTransModal, setShowTransModal] = useState(false);
   const [transForm, setTransForm] = useState<Omit<Transaction, "id">>({
-    date: new Date().toISOString().split("T")[0],
-    type: "expense",
+    item_date: null,
+    transaction_type: "expense",
     category: "",
-    description: "",
-    paymentMethod: "",
+    title: "",
+    payment_method: "",
     amount: 0,
   });
 
@@ -49,45 +71,47 @@ const Expenses = () => {
     amount: 0,
   });
 
-  // Load data
-  useEffect(() => {
-    const storedTrans = JSON.parse(localStorage.getItem("lifePlannerExpenses") ?? "{}") as any;
-    setTransactions(storedTrans.transactions ?? []);
-    const storedBud = JSON.parse(localStorage.getItem("lifePlannerBudgets") ?? "{}") as any;
-    setBudgets(storedBud.budgets ?? {});
-  }, []);
+  // Loading / error states
+  if (txLoading || budgetsLoading) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-muted-foreground">Loading expenses…</span>
+      </div>
+    );
+  }
 
-  // Persist data
-  useEffect(() => {
-    localStorage.setItem("lifePlannerExpenses", JSON.stringify({ transactions }));
-  }, [transactions]);
-
-  useEffect(() => {
-    localStorage.setItem("lifePlannerBudgets", JSON.stringify({ budgets }));
-  }, [budgets]);
+  if (txError || budgetsError) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <span className="text-destructive">
+          {txError?.message ?? budgetsError?.message ?? "Error loading data"}
+        </span>
+      </div>
+    );
+  }
 
   const handleTransFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setTransForm(prev => ({
       ...prev,
-      [name]: name === "amount" ? parseFloat(value) : value,
+      [name]: name === "amount" ? parseFloat(value) || 0 : value,
     }));
   };
 
-  const handleAddTransaction = (e: React.FormEvent) => {
+  const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     const newTrans: Transaction = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       ...transForm,
     };
-    setTransactions(prev => [...prev, newTrans]);
+    await addTx(newTrans);
     setShowTransModal(false);
     setTransForm({
-      date: new Date().toISOString().split("T")[0],
-      type: "expense",
+      item_date: null,
+      transaction_type: "expense",
       category: "",
-      description: "",
-      paymentMethod: "",
+      title: "",
+      payment_method: "",
       amount: 0,
     });
   };
@@ -96,16 +120,13 @@ const Expenses = () => {
     const { name, value } = e.target;
     setBudgetForm(prev => ({
       ...prev,
-      [name]: name === "amount" ? parseFloat(value) : value,
+      [name]: name === "amount" ? parseFloat(value) || 0 : value,
     }));
   };
 
-  const handleSetBudget = (e: React.FormEvent) => {
+  const handleSetBudget = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBudgets(prev => ({
-      ...prev,
-      [budgetForm.category]: budgetForm.amount,
-    }));
+    await setBudget(budgetForm.category, budgetForm.amount);
     setShowBudgetModal(false);
     setBudgetForm({ category: "", amount: 0 });
   };
@@ -113,20 +134,23 @@ const Expenses = () => {
   // Filter transactions for selected month
   const monthStart = `${selectedMonth}-01`;
   const monthEnd = `${selectedMonth}-31`;
-  const monthTransactions = transactions.filter(t => t.date >= monthStart && t.date <= monthEnd);
+  const monthTransactions = transactions.filter(t => {
+    if (!t.item_date) return false;
+    return t.item_date >= monthStart && t.item_date <= monthEnd;
+  });
 
   const totalIncome = monthTransactions
-    .filter(t => t.type === "income")
+    .filter(t => t.transaction_type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = monthTransactions
-    .filter(t => t.type === "expense")
+    .filter(t => t.transaction_type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
   const balance = totalIncome - totalExpense;
 
   // Spending per category
   const spendingByCategory: Record<string, number> = {};
   monthTransactions
-    .filter(t => t.type === "expense")
+    .filter(t => t.transaction_type === "expense")
     .forEach(t => {
       spendingByCategory[t.category] = (spendingByCategory[t.category] ?? 0) + t.amount;
     });
@@ -134,7 +158,7 @@ const Expenses = () => {
   const chartData = Object.keys(spendingByCategory).map(cat => ({
     category: cat,
     spent: spendingByCategory[cat],
-    budget: budgets[cat] ?? 0,
+    budget: budgets.find(b => b.category === cat)?.monthly_limit ?? 0,
   }));
 
   const categories = Array.from(new Set(transactions.map(t => t.category)));
@@ -208,7 +232,7 @@ const Expenses = () => {
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead>Description</TableHead>
+                <TableHead>Title</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
               </TableRow>
@@ -216,13 +240,13 @@ const Expenses = () => {
             <TableBody>
               {monthTransactions.map(t => (
                 <TableRow key={t.id}>
-                  <TableCell>{t.date}</TableCell>
-                  <TableCell>{t.type}</TableCell>
+                  <TableCell>{t.item_date ?? "—"}</TableCell>
+                  <TableCell>{t.transaction_type}</TableCell>
                   <TableCell>{t.category}</TableCell>
-                  <TableCell>{t.description}</TableCell>
-                  <TableCell>{t.paymentMethod}</TableCell>
+                  <TableCell>{t.title}</TableCell>
+                  <TableCell>{t.payment_method}</TableCell>
                   <TableCell className="text-right">
-                    <span className={t.type === "income" ? "text-green-600" : "text-red-600"}>
+                    <span className={t.transaction_type === "income" ? "text-green-600" : "text-red-600"}>
                       ${t.amount.toFixed(2)}
                     </span>
                   </TableCell>
@@ -274,14 +298,14 @@ const Expenses = () => {
           <form onSubmit={handleAddTransaction} className="space-y-4 mt-4">
             <Input
               type="date"
-              name="date"
-              value={transForm.date}
+              name="item_date"
+              value={transForm.item_date ?? ""}
               onChange={handleTransFormChange}
               required
             />
             <Select
-              value={transForm.type}
-              onValueChange={val => setTransForm(prev => ({ ...prev, type: val as "income" | "expense" }))}
+              value={transForm.transaction_type}
+              onValueChange={val => setTransForm(prev => ({ ...prev, transaction_type: val as "income" | "expense" }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Type" />
@@ -301,23 +325,24 @@ const Expenses = () => {
             />
             <Input
               type="text"
-              name="description"
-              placeholder="Description"
-              value={transForm.description}
+              name="title"
+              placeholder="Title"
+              value={transForm.title}
               onChange={handleTransFormChange}
+              required
             />
             <Input
               type="text"
-              name="paymentMethod"
+              name="payment_method"
               placeholder="Payment Method"
-              value={transForm.paymentMethod}
+              value={transForm.payment_method}
               onChange={handleTransFormChange}
             />
             <Input
               type="number"
               name="amount"
               placeholder="Amount"
-              value={transForm.amount}
+              value={transForm.amount.toString()}
               onChange={handleTransFormChange}
               required
               step="0.01"
@@ -358,7 +383,7 @@ const Expenses = () => {
               type="number"
               name="amount"
               placeholder="Budget Amount"
-              value={budgetForm.amount}
+              value={budgetForm.amount.toString()}
               onChange={handleBudgetFormChange}
               required
               step="0.01"
