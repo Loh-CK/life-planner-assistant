@@ -11,6 +11,7 @@ import { Mail, Lock, Calendar, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
