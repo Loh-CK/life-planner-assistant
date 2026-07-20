@@ -72,6 +72,14 @@ const Expenses = () => {
     amount: 0,
   });
 
+  // New category handling for transaction form
+  const [isNewCategorySelectedTrans, setIsNewCategorySelectedTrans] = useState(false);
+  const [transNewCategoryName, setTransNewCategoryName] = useState("");
+
+  // New category handling for budget form
+  const [isNewCategorySelectedBudget, setIsNewCategorySelectedBudget] = useState(false);
+  const [budgetNewCategoryName, setBudgetNewCategoryName] = useState("");
+
   // Loading / error states
   if (txLoading || budgetsLoading) {
     return (
@@ -93,16 +101,19 @@ const Expenses = () => {
 
   const handleTransFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setTransForm(prev => ({
-      ...prev,
-      [name]: name === "amount" ? parseFloat(value) || 0 : value,
-    }));
+    if (name === "category") {
+      // Handled by Select's onValueChange
+      return;
+    }
+    setTransForm(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
+    const category = isNewCategorySelectedTrans ? transNewCategoryName.trim() : transForm.category;
     const newTrans: Transaction = {
       ...transForm,
+      category,
     };
     await addTx(newTrans);
     setShowTransModal(false);
@@ -114,21 +125,25 @@ const Expenses = () => {
       payment_method: "",
       amount: 0,
     });
+    setIsNewCategorySelectedTrans(false);
+    setTransNewCategoryName("");
   };
 
   const handleBudgetFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setBudgetForm(prev => ({
-      ...prev,
-      [name]: name === "amount" ? parseFloat(value) || 0 : value,
-    }));
+    if (name === "amount") {
+      setBudgetForm(prev => ({ ...prev, amount: parseFloat(value) || 0 }));
+    }
   };
 
   const handleSetBudget = async (e: React.FormEvent) => {
     e.preventDefault();
-    await setBudget(budgetForm.category, budgetForm.amount);
+    const category = isNewCategorySelectedBudget ? budgetNewCategoryName.trim() : budgetForm.category;
+    await setBudget(category, budgetForm.amount);
     setShowBudgetModal(false);
     setBudgetForm({ category: "", amount: 0 });
+    setIsNewCategorySelectedBudget(false);
+    setBudgetNewCategoryName("");
   };
 
   // Filter transactions for selected month
@@ -168,23 +183,6 @@ const Expenses = () => {
     { name: "Income", value: totalIncome },
     { name: "Expense", value: totalExpense },
   ];
-
-  // Helper to open edit budget dialog
-  const openEditBudget = (budget: Budget) => {
-    setBudgetForm({ category: budget.category, amount: budget.monthly_limit });
-    setShowBudgetModal(true);
-  };
-
-  // Helper to open set budget for a category (new or existing)
-  const openSetBudget = (category: string, amount: number = 0) => {
-    setBudgetForm({ category, amount });
-    setShowBudgetModal(true);
-  };
-
-  // Categories with spending but no budget
-  const categoriesWithoutBudget = categories.filter(
-    cat => !budgets.some(b => b.category === cat)
-  );
 
   // Utility to determine progress bar color
   const getProgressColor = (percent: number) => {
@@ -468,14 +466,37 @@ const Expenses = () => {
                 <SelectItem value="expense">Expense</SelectItem>
               </SelectContent>
             </Select>
-            <Input
-              type="text"
-              name="category"
-              placeholder="Category"
-              value={transForm.category}
-              onChange={handleTransFormChange}
-              required
-            />
+            <Select
+              value={isNewCategorySelectedTrans ? "new" : transForm.category}
+              onValueChange={val => {
+                if (val === "new") {
+                  setIsNewCategorySelectedTrans(true);
+                  setTransNewCategoryName("");
+                } else {
+                  setIsNewCategorySelectedTrans(false);
+                  setTransForm(prev => ({ ...prev, category: val }));
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+                <SelectItem value="new">+ Add new category...</SelectItem>
+              </SelectContent>
+            </Select>
+            {isNewCategorySelectedTrans && (
+              <Input
+                type="text"
+                placeholder="New category name"
+                value={transNewCategoryName}
+                onChange={e => setTransNewCategoryName(e.target.value)}
+                required
+              />
+            )}
             <Input
               type="text"
               name="title"
@@ -519,8 +540,16 @@ const Expenses = () => {
           </DialogHeader>
           <form onSubmit={handleSetBudget} className="space-y-4 mt-4">
             <Select
-              value={budgetForm.category}
-              onValueChange={val => setBudgetForm(prev => ({ ...prev, category: val }))}
+              value={isNewCategorySelectedBudget ? "new" : budgetForm.category}
+              onValueChange={val => {
+                if (val === "new") {
+                  setIsNewCategorySelectedBudget(true);
+                  setBudgetNewCategoryName("");
+                } else {
+                  setIsNewCategorySelectedBudget(false);
+                  setBudgetForm(prev => ({ ...prev, category: val }));
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Category" />
@@ -529,9 +558,18 @@ const Expenses = () => {
                 {categories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
-                <SelectItem value="New Category">New Category</SelectItem>
+                <SelectItem value="new">+ Add new category...</SelectItem>
               </SelectContent>
             </Select>
+            {isNewCategorySelectedBudget && (
+              <Input
+                type="text"
+                placeholder="New category name"
+                value={budgetNewCategoryName}
+                onChange={e => setBudgetNewCategoryName(e.target.value)}
+                required
+              />
+            )}
             <Input
               type="number"
               name="amount"
