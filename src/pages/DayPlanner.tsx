@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, CheckCircle, XCircle, Calendar as CalendarIcon } from "lucide-react";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
 import { PageHeader } from "@/components/PageHeader";
+import { localDateString } from "@/lib/date";
 
 interface TimeBlock {
   id: string;
@@ -38,7 +39,7 @@ const categoryColors: Record<string, string> = {
 };
 
 const DayPlanner = () => {
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(localDateString());
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
@@ -130,11 +131,14 @@ const DayPlanner = () => {
 
   const containerHeight = (DAY_END - DAY_START + 1) * HOUR_HEIGHT;
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = localDateString();
   const isToday = selectedDate === todayStr;
+  const isPastDate = selectedDate < todayStr;
   const currentTimeOffset = isToday
     ? (new Date().getHours() * 60 + new Date().getMinutes() - DAY_START * 60) * (HOUR_HEIGHT / 60)
     : null;
+  const isPastHour = (hour: number) =>
+    isPastDate || (isToday && hour < new Date().getHours());
 
   if (loading) {
     return (
@@ -196,14 +200,16 @@ const DayPlanner = () => {
           const hour = DAY_START + i;
           const topOffset = (hour - DAY_START) * HOUR_HEIGHT;
           const isAlternate = i % 2 === 0;
+          const disabled = isPastHour(hour);
           return (
             <div
               key={hour}
               className={`absolute left-16 right-0 h-[75px] ${
                 isAlternate ? "bg-muted/10" : ""
-              }`}
+              } ${disabled ? "cursor-not-allowed" : ""}`}
               style={{ top: `${topOffset}px` }}
               onClick={() => {
+                if (disabled) return;
                 setEditingBlock(null);
                 setForm({
                   title: "",
@@ -215,9 +221,19 @@ const DayPlanner = () => {
                 setShowModal(true);
               }}
             >
-              <div className="h-full w-full border-dashed border-2 border-muted-foreground/30 rounded-md flex items-center justify-center hover:bg-muted/50 transition-colors group">
-                <Plus className="h-6 w-6 mr-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">Add</span>
+              <div
+                className={`h-full w-full border-dashed border-2 rounded-md flex items-center justify-center transition-colors group ${
+                  disabled
+                    ? "border-muted-foreground/10 opacity-40"
+                    : "border-muted-foreground/30 hover:bg-muted/50"
+                }`}
+              >
+                {!disabled && (
+                  <>
+                    <Plus className="h-6 w-6 mr-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <span className="text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">Add</span>
+                  </>
+                )}
               </div>
             </div>
           );
@@ -293,7 +309,7 @@ const DayPlanner = () => {
 
         {/* Empty state message */}
         {dayBlocks.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground pointer-events-none">
             <p>No plans yet for this day — click any time slot to add one.</p>
           </div>
         )}

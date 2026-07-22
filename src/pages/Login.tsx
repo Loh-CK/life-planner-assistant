@@ -17,8 +17,10 @@ import {
   ListTodo,
   DollarSign,
   BrainCircuit,
+  User,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { userScopedKey } from "@/lib/userStorage";
 
 const features = [
   { icon: CalendarDays, label: "Calendar & day planner", description: "Time-block your day and never miss an event." },
@@ -32,6 +34,7 @@ const Login = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,19 +45,70 @@ const Login = () => {
     setError(null);
     try {
       if (mode === "login") {
-        const { error: loginError } = await supabase.auth.signInWithPassword({
+        const { data, error: loginError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (loginError) throw loginError;
+
+        // Keep the stored display name in sync with whatever username was typed here.
+        const loggedInUserId = data.user?.id;
+        if (loggedInUserId && username.trim()) {
+          const settingsKey = userScopedKey("lifePlannerSettings", loggedInUserId);
+          const existing = JSON.parse(localStorage.getItem(settingsKey) ?? "{}");
+          localStorage.setItem(
+            settingsKey,
+            JSON.stringify({
+              ollama: existing.ollama ?? {
+                url: "http://localhost:11434",
+                model: "gpt-oss:20b-cloud",
+                temperature: 0.6,
+                contextWindow: 8192,
+              },
+              preferences: {
+                currency: "USD",
+                weekStart: "Monday",
+                ...existing.preferences,
+                displayName: username.trim(),
+              },
+            })
+          );
+        }
+
         showSuccess("Logged in successfully");
         navigate("/dashboard");
       } else {
-        const { error: signupError } = await supabase.auth.signUp({
+        const { data, error: signupError } = await supabase.auth.signUp({
           email,
           password,
         });
         if (signupError) throw signupError;
+
+        // Save the display name right away so Dashboard can show it without
+        // a separate trip to Settings - same storage Settings itself reads/writes.
+        const newUserId = data.user?.id;
+        if (newUserId && username.trim()) {
+          const settingsKey = userScopedKey("lifePlannerSettings", newUserId);
+          const existing = JSON.parse(localStorage.getItem(settingsKey) ?? "{}");
+          localStorage.setItem(
+            settingsKey,
+            JSON.stringify({
+              ollama: existing.ollama ?? {
+                url: "http://localhost:11434",
+                model: "gpt-oss:20b-cloud",
+                temperature: 0.6,
+                contextWindow: 8192,
+              },
+              preferences: {
+                currency: "USD",
+                weekStart: "Monday",
+                ...existing.preferences,
+                displayName: username.trim(),
+              },
+            })
+          );
+        }
+
         showSuccess("Account created – check your email for confirmation");
       }
     } catch (err: any) {
@@ -143,6 +197,26 @@ const Login = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="username" className="sr-only">
+                    Username
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="username"
+                      type="text"
+                      placeholder="Username"
+                      autoComplete="nickname"
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <Label htmlFor="email" className="sr-only">
                     Email

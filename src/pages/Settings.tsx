@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { showSuccess, showError } from "@/utils/toast";
 import { Trash2, Upload, Download, CheckCircle2, XCircle } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { userScopedKey } from "@/lib/userStorage";
 
 interface SettingsData {
   ollama: {
@@ -38,9 +40,9 @@ const DEFAULT_SETTINGS: SettingsData = {
   },
 };
 
-const loadStoredSettings = (): SettingsData => {
+const loadStoredSettings = (userId: string | null): SettingsData => {
   try {
-    const stored = localStorage.getItem("lifePlannerSettings");
+    const stored = localStorage.getItem(userScopedKey("lifePlannerSettings", userId));
     return stored ? JSON.parse(stored) : DEFAULT_SETTINGS;
   } catch {
     return DEFAULT_SETTINGS;
@@ -48,20 +50,28 @@ const loadStoredSettings = (): SettingsData => {
 };
 
 const Settings = () => {
-  const [settings, setSettings] = useState<SettingsData>(loadStoredSettings);
+  const { userId } = useCurrentUser();
+  const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [availableModels, setAvailableModels] = useState<string[]>([]);
 
-  // Persist settings
+  // Load this user's settings once their id is known
   useEffect(() => {
-    localStorage.setItem("lifePlannerSettings", JSON.stringify(settings));
-  }, [settings]);
+    if (!userId) return;
+    setSettings(loadStoredSettings(userId));
+  }, [userId]);
+
+  const persistSettings = (next: SettingsData) => {
+    if (!userId) return;
+    localStorage.setItem(userScopedKey("lifePlannerSettings", userId), JSON.stringify(next));
+  };
 
   const handleChange = (section: keyof SettingsData, key: string, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      [section]: { ...prev[section], [key]: value },
-    }));
+    setSettings(prev => {
+      const next = { ...prev, [section]: { ...prev[section], [key]: value } };
+      persistSettings(next);
+      return next;
+    });
   };
 
   // Check Ollama is reachable and pull the list of locally installed models
@@ -98,7 +108,8 @@ const Settings = () => {
   );
 
   const exportBackup = () => {
-    const data = localStorage.getItem("lifePlannerSettings") ?? "{}";
+    if (!userId) return;
+    const data = localStorage.getItem(userScopedKey("lifePlannerSettings", userId)) ?? "{}";
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -110,12 +121,12 @@ const Settings = () => {
 
   const importBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !userId) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const json = JSON.parse(reader.result as string);
-        localStorage.setItem("lifePlannerSettings", JSON.stringify(json));
+        persistSettings(json);
         setSettings(json);
         showSuccess("Backup imported successfully!");
       } catch {
@@ -126,8 +137,14 @@ const Settings = () => {
   };
 
   const clearAllData = () => {
+    if (!userId) return;
     if (window.confirm("Are you sure you want to clear all data? This cannot be undone.")) {
-      localStorage.clear();
+      localStorage.removeItem(userScopedKey("lifePlannerSettings", userId));
+      localStorage.removeItem(userScopedKey("lifePlannerNotes", userId));
+      localStorage.removeItem(userScopedKey("lifePlannerData", userId));
+      localStorage.removeItem(userScopedKey("lifePlannerPomoDurations", userId));
+      localStorage.removeItem(userScopedKey("lifePlannerPomoCycles", userId));
+      localStorage.removeItem(userScopedKey("lifePlannerPomoSessions", userId));
       setSettings(DEFAULT_SETTINGS);
       showSuccess("All data cleared.");
     }

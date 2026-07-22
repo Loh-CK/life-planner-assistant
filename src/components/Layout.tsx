@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import AIAdvisorPanel from "@/components/AIAdvisorPanel";
 import { supabase } from "@/integrations/supabase/client";
+import { userScopedKey } from "@/lib/userStorage";
 
 const navItems = [
   { name: "Dashboard", icon: HomeIcon, path: "/dashboard" },
@@ -25,13 +26,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [displayName, setDisplayName] = useState<string>("");
 
   useEffect(() => {
+    if (!userId) return;
     try {
-      const stored = JSON.parse(localStorage.getItem("lifePlannerSettings") ?? "{}");
+      const stored = JSON.parse(localStorage.getItem(userScopedKey("lifePlannerSettings", userId)) ?? "{}");
       setDisplayName(stored?.preferences?.displayName ?? "");
     } catch {
       setDisplayName("");
     }
-  }, []);
+  }, [userId]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

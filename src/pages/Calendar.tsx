@@ -17,6 +17,7 @@ import {
   Calendar as CalendarIcon,
 } from "lucide-react";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
+import { localDateString } from "@/lib/date";
 
 interface Event {
   id: string;
@@ -42,6 +43,8 @@ const Calendar = () => {
     updateItem,
     deleteItem,
   } = usePlannerItems("event");
+
+  const { items: tasks, loading: tasksLoading, error: tasksError } = usePlannerItems("task");
 
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -70,6 +73,7 @@ const Calendar = () => {
   };
 
   const eventsForDate = (date: string) => events.filter((e) => e.item_date === date);
+  const tasksForDate = (date: string) => tasks.filter((t) => t.item_date === date);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -135,7 +139,7 @@ const Calendar = () => {
     deleteItem(id);
   };
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = localDateString();
   const isToday = selectedDate === today;
   const currentTimeOffset = isToday
     ? (new Date().getHours() * 60 + new Date().getMinutes() - DAY_START * 60) * (HOUR_HEIGHT / 60)
@@ -222,7 +226,7 @@ const Calendar = () => {
     health: "bg-green-400",
   };
 
-  if (loading) {
+  if (loading || tasksLoading) {
     return (
       <div className="p-4 flex justify-center items-center h-64">
         <span className="text-muted-foreground">Loading events…</span>
@@ -230,10 +234,10 @@ const Calendar = () => {
     );
   }
 
-  if (error) {
+  if (error || tasksError) {
     return (
       <div className="p-4 flex justify-center items-center h-64">
-        <span className="text-destructive">{error}</span>
+        <span className="text-destructive">{error ?? tasksError}</span>
       </div>
     );
   }
@@ -286,6 +290,14 @@ const Calendar = () => {
 
         {viewMode === "month" ? (
           <>
+            <div className="flex items-center gap-4 mb-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Event
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm border border-blue-500 bg-blue-500/10" /> Task
+              </span>
+            </div>
             <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2">
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
                 <div key={d} className="font-medium">
@@ -306,34 +318,73 @@ const Calendar = () => {
                 );
                 const isCurrentMonth = date.getMonth() === month;
                 const isToday = dateStr === today;
+                const isSelected = dateStr === selectedDate;
                 const dayEvents = eventsForDate(dateStr);
+                const dayTasks = tasksForDate(dateStr);
+                const dayEntries = [
+                  ...dayEvents.map((e) => ({
+                    id: `event-${e.id}`,
+                    title: e.title,
+                    time: e.start_time,
+                    type: "event" as const,
+                    category: e.category,
+                    completed: false,
+                  })),
+                  ...dayTasks.map((t) => ({
+                    id: `task-${t.id}`,
+                    title: t.title,
+                    time: t.start_time,
+                    type: "task" as const,
+                    category: t.category,
+                    completed: t.completed,
+                  })),
+                ];
                 return (
                   <div
                     key={idx}
-                    className={`p-2 border rounded cursor-pointer transition-colors ${
-                      isCurrentMonth
-                        ? "hover:bg-accent hover:text-accent-foreground"
-                        : "text-muted-foreground/40 bg-muted/20 hover:bg-muted/30"
+                    className={`min-h-[5.5rem] p-2 border rounded cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-accent text-accent-foreground border-primary"
+                        : isCurrentMonth
+                          ? "hover:bg-accent hover:text-accent-foreground"
+                          : "text-muted-foreground/40 bg-muted/20 hover:bg-muted/30"
                     }`}
                     onClick={() => handleDayClick(date, isCurrentMonth)}
                   >
                     <div className="flex justify-end">
                       <span
                         className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium ${
-                          isToday ? "bg-primary text-primary-foreground" : ""
+                          isToday
+                            ? "bg-primary text-primary-foreground"
+                            : isSelected
+                              ? "ring-2 ring-primary ring-inset"
+                              : ""
                         }`}
                       >
                         {date.getDate()}
                       </span>
                     </div>
-                    {dayEvents.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {dayEvents.map((e) => (
-                          <span
-                            key={e.id}
-                            className="w-2 h-2 rounded-full bg-primary"
-                          />
+                    {dayEntries.length > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        {dayEntries.slice(0, 3).map((entry) => (
+                          <div
+                            key={entry.id}
+                            className={`truncate rounded px-1 py-0.5 text-xs ${
+                              entry.type === "event"
+                                ? `text-white ${categoryColors[entry.category] ?? "bg-primary"}`
+                                : `border ${entry.completed ? "border-muted-foreground/40 text-muted-foreground line-through" : "border-blue-500 text-blue-700 bg-blue-500/10"}`
+                            }`}
+                            title={`${entry.type === "event" ? "Event" : "Task"}: ${entry.title}`}
+                          >
+                            {entry.time ? `${entry.time} ` : ""}
+                            {entry.title}
+                          </div>
                         ))}
+                        {dayEntries.length > 3 && (
+                          <div className="px-1 text-xs text-muted-foreground">
+                            +{dayEntries.length - 3} more
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -481,25 +532,52 @@ const Calendar = () => {
       <div className="w-80 p-4 border-l hidden md:block">
         <h3 className="text-lg font-semibold mb-2">Events</h3>
         {selectedDate ? (
-          eventsForDate(selectedDate).length ? (
-            <ul className="space-y-2">
-              {eventsForDate(selectedDate).map((e) => (
-                <li key={e.id} className="p-2 bg-card rounded">
-                  <div className="font-medium">{e.title}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {e.start_time}–{e.end_time} | {e.category} | {e.location}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No events for this day.
-            </p>
-          )
+          <>
+            <div>
+              <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
+                <span className="h-2 w-2 rounded-sm bg-primary" /> Events
+              </h4>
+              {eventsForDate(selectedDate).length ? (
+                <ul className="space-y-2">
+                  {eventsForDate(selectedDate).map((e) => (
+                    <li key={e.id} className="p-2 bg-card rounded">
+                      <div className="font-medium">{e.title}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {e.start_time}–{e.end_time} | {e.category} | {e.location}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No events for this day.</p>
+              )}
+            </div>
+            <div className="mt-4">
+              <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
+                <span className="h-2 w-2 rounded-sm border border-blue-500 bg-blue-500/10" /> Tasks Due
+              </h4>
+              {tasksForDate(selectedDate).length ? (
+                <ul className="space-y-2">
+                  {tasksForDate(selectedDate).map((t) => (
+                    <li key={t.id} className="p-2 bg-card rounded">
+                      <div className={`font-medium ${t.completed ? "line-through text-muted-foreground" : ""}`}>
+                        {t.title}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {t.start_time ? `Due at ${t.start_time} | ` : ""}
+                        {t.priority} priority
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No tasks due this day.</p>
+              )}
+            </div>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Select a day to view events.
+            Select a day to view events and tasks.
           </p>
         )}
         <Dialog open={showModal} onOpenChange={setShowModal}>

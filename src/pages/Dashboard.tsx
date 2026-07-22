@@ -8,6 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { userScopedKey } from "@/lib/userStorage";
+import { getStoredCurrency, getCurrencySymbol } from "@/lib/currency";
+import { localDateString } from "@/lib/date";
 
 interface Event {
   id: string;
@@ -34,6 +38,8 @@ interface Task {
 }
 
 const Dashboard = () => {
+  const { userId } = useCurrentUser();
+
   const {
     items: events,
     loading: eventsLoading,
@@ -55,31 +61,46 @@ const Dashboard = () => {
     addItem: addExpense,
   } = usePlannerItems("expense");
 
-  const [focusSessions, setFocusSessions] = useState<any[]>([]);
   const [intention, setIntention] = useState<string>("");
   const [displayName, setDisplayName] = useState<string>("");
+  const [focusSessionsToday, setFocusSessionsToday] = useState<number>(0);
 
+  // Load this user's local-only data once their id is known
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem("lifePlannerData") ?? "{}") as any;
-    setFocusSessions(data.focusSessions ?? []);
-    setIntention(data.intention ?? '');
+    if (!userId) return;
     try {
-      const settings = JSON.parse(localStorage.getItem("lifePlannerSettings") ?? "{}");
+      const data = JSON.parse(localStorage.getItem(userScopedKey("lifePlannerData", userId)) ?? "{}");
+      setIntention(data.intention ?? "");
+    } catch {
+      setIntention("");
+    }
+    try {
+      const settings = JSON.parse(localStorage.getItem(userScopedKey("lifePlannerSettings", userId)) ?? "{}");
       setDisplayName(settings?.preferences?.displayName ?? "");
     } catch {
       setDisplayName("");
     }
-  }, []);
+    try {
+      const history = JSON.parse(
+        localStorage.getItem(userScopedKey("lifePlannerPomoSessions", userId)) ?? "[]"
+      ) as { mode: string; timestamp: string }[];
+      const todayStr = new Date().toDateString();
+      setFocusSessionsToday(
+        history.filter(s => s.mode === "focus" && new Date(s.timestamp).toDateString() === todayStr).length
+      );
+    } catch {
+      setFocusSessionsToday(0);
+    }
+  }, [userId]);
 
-  useEffect(() => {
-    localStorage.setItem(
-      "lifePlannerData",
-      JSON.stringify({ events, tasks, focusSessions, intention })
-    );
-  }, [events, tasks, focusSessions, intention]);
+  const updateIntention = (value: string) => {
+    setIntention(value);
+    if (!userId) return;
+    localStorage.setItem(userScopedKey("lifePlannerData", userId), JSON.stringify({ intention: value }));
+  };
 
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
+  const today = localDateString(now);
 
   const hour = now.getHours();
   const greeting =
@@ -121,7 +142,7 @@ const Dashboard = () => {
   });
 
   const countForDay = (date: Date) => {
-    const dStr = date.toISOString().split("T")[0];
+    const dStr = localDateString(date);
     const ev = events.filter((e) => e.item_date === dStr).length;
     const tk = tasks.filter((t) => t.item_date === dStr).length;
     return ev + tk;
@@ -147,6 +168,7 @@ const Dashboard = () => {
         e.item_date <= monthEnd
     )
     .reduce((sum, e) => sum + e.amount, 0);
+  const currencySymbol = getCurrencySymbol(getStoredCurrency(userId));
 
   if (eventsLoading || tasksLoading || expensesLoading) {
     return (
@@ -199,7 +221,7 @@ const Dashboard = () => {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
-              {nextItem.datetime!.toISOString().split("T")[0] === today
+              {localDateString(nextItem.datetime!) === today
                 ? ` at ${nextItem.datetime!.toLocaleTimeString(undefined, {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -216,7 +238,7 @@ const Dashboard = () => {
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {weekDays.map((d) => {
-          const dStr = d.toISOString().split("T")[0];
+          const dStr = localDateString(d);
           const isToday = dStr === today;
           return (
             <div
@@ -240,8 +262,8 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <KpiCard title="Today's Events" value={events.filter(e => e.item_date === today).length} icon={<CalendarIcon />} />
         <KpiCard title="Open Tasks" value={tasks.filter(t => !t.completed).length} icon={<ListCheckIcon />} />
-        <KpiCard title="This Month's Spending" value={`$${thisMonthSpending}`} icon={<DollarSignIcon />} />
-        <KpiCard title="Focus Sessions Today" value={focusSessions.filter(f => f.date === today).length} icon={<TimerIcon />} />
+        <KpiCard title="This Month's Spending" value={`${currencySymbol}${thisMonthSpending.toFixed(2)}`} icon={<DollarSignIcon />} />
+        <KpiCard title="Focus Sessions Today" value={focusSessionsToday} icon={<TimerIcon />} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -339,7 +361,7 @@ const Dashboard = () => {
                 type="text"
                 placeholder="Write one sentence for today"
                 value={intention}
-                onChange={e => setIntention(e.target.value)}
+                onChange={e => updateIntention(e.target.value)}
               />
             </CardContent>
           </Card>

@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Minus, Settings, Save, X } from "lucide-react";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { userScopedKey } from "@/lib/userStorage";
 
 type Mode = "focus" | "short" | "long";
 
@@ -27,15 +29,11 @@ const defaultDurations: Durations = { focus: 25, short: 5, long: 15 };
 const defaultCycles = 4;
 
 const Pomodoro = () => {
-  // Load persisted settings
-  const [durations, setDurations] = useState<Durations>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY_DURATIONS);
-    return stored ? JSON.parse(stored) : defaultDurations;
-  });
-  const [cyclesBeforeLong, setCyclesBeforeLong] = useState<number>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY_CYCLES);
-    return stored ? parseInt(stored, 10) : defaultCycles;
-  });
+  const { userId } = useCurrentUser();
+
+  // Persisted settings (loaded per-user once userId is known, see effect below)
+  const [durations, setDurations] = useState<Durations>(defaultDurations);
+  const [cyclesBeforeLong, setCyclesBeforeLong] = useState<number>(defaultCycles);
 
   // Timer state
   const [mode, setMode] = useState<Mode>("focus");
@@ -44,10 +42,7 @@ const Pomodoro = () => {
   const [currentCycle, setCurrentCycle] = useState<number>(0); // completed focus cycles in current set
 
   // Session history
-  const [history, setHistory] = useState<Session[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY_HISTORY);
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [history, setHistory] = useState<Session[]>([]);
 
   // Settings panel visibility
   const [showSettings, setShowSettings] = useState<boolean>(false);
@@ -55,6 +50,25 @@ const Pomodoro = () => {
   const [tempCycles, setTempCycles] = useState<number>(cyclesBeforeLong);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load this user's durations/cycles/history once their id is known
+  useEffect(() => {
+    if (!userId) return;
+    const storedDurations = localStorage.getItem(userScopedKey(STORAGE_KEY_DURATIONS, userId));
+    if (storedDurations) {
+      const parsed = JSON.parse(storedDurations);
+      setDurations(parsed);
+      setTempDurations(parsed);
+    }
+    const storedCycles = localStorage.getItem(userScopedKey(STORAGE_KEY_CYCLES, userId));
+    if (storedCycles) {
+      const parsed = parseInt(storedCycles, 10);
+      setCyclesBeforeLong(parsed);
+      setTempCycles(parsed);
+    }
+    const storedHistory = localStorage.getItem(userScopedKey(STORAGE_KEY_HISTORY, userId));
+    if (storedHistory) setHistory(JSON.parse(storedHistory));
+  }, [userId]);
 
   // Update timer when mode changes
   useEffect(() => {
@@ -99,7 +113,9 @@ const Pomodoro = () => {
     };
     const updatedHistory = [newSession, ...history];
     setHistory(updatedHistory);
-    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(updatedHistory));
+    if (userId) {
+      localStorage.setItem(userScopedKey(STORAGE_KEY_HISTORY, userId), JSON.stringify(updatedHistory));
+    }
 
     // Determine next mode
     if (mode === "focus") {
@@ -130,8 +146,10 @@ const Pomodoro = () => {
   const saveSettings = () => {
     setDurations(tempDurations);
     setCyclesBeforeLong(tempCycles);
-    localStorage.setItem(STORAGE_KEY_DURATIONS, JSON.stringify(tempDurations));
-    localStorage.setItem(STORAGE_KEY_CYCLES, tempCycles.toString());
+    if (userId) {
+      localStorage.setItem(userScopedKey(STORAGE_KEY_DURATIONS, userId), JSON.stringify(tempDurations));
+      localStorage.setItem(userScopedKey(STORAGE_KEY_CYCLES, userId), tempCycles.toString());
+    }
     setShowSettings(false);
   };
 

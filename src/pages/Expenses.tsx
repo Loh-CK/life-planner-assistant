@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Plus, DollarSign, Download, Pencil, Trash2, Tag, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
 import { useBudgets } from "@/hooks/useBudgets";
 import { PageHeader } from "@/components/PageHeader";
+import { getStoredCurrency, getCurrencySymbol } from "@/lib/currency";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface Transaction {
   id: string;
@@ -47,6 +49,8 @@ const Expenses = () => {
     setBudget,
     deleteBudget,
   } = useBudgets();
+
+  const { userId } = useCurrentUser();
 
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const d = new Date();
@@ -94,6 +98,9 @@ const Expenses = () => {
       </div>
     );
   }
+
+  const currencySymbol = getCurrencySymbol(getStoredCurrency(userId));
+  const formatAmount = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
 
   const handleTransFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -270,7 +277,7 @@ const Expenses = () => {
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Income</p>
-              <p className="text-2xl font-bold text-emerald-600">${totalIncome.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-emerald-600">{formatAmount(totalIncome)}</p>
             </div>
           </CardContent>
         </Card>
@@ -281,7 +288,7 @@ const Expenses = () => {
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
-              <p className="text-2xl font-bold text-rose-600">${totalExpense.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-rose-600">{formatAmount(totalExpense)}</p>
             </div>
           </CardContent>
         </Card>
@@ -293,7 +300,7 @@ const Expenses = () => {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Balance</p>
               <p className={`text-2xl font-bold ${balance >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                ${balance.toFixed(2)}
+                {formatAmount(balance)}
               </p>
             </div>
           </CardContent>
@@ -308,16 +315,23 @@ const Expenses = () => {
         <CardContent>
           {totalIncome > 0 || totalExpense > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={incomeExpenseData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" name="Amount" radius={[4, 4, 0, 0]}>
+              <PieChart>
+                <Pie
+                  data={incomeExpenseData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label={({ name, value }) => `${name}: ${formatAmount(value)}`}
+                >
                   {incomeExpenseData.map(entry => (
                     <Cell key={entry.name} fill={entry.name === "Income" ? "#10B981" : "#EF4444"} />
                   ))}
-                </Bar>
-              </BarChart>
+                </Pie>
+                <Tooltip formatter={(value: number) => formatAmount(value)} />
+                <Legend />
+              </PieChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -389,12 +403,12 @@ const Expenses = () => {
 
                     {/* Amount info */}
                     <p className="mt-2 text-sm">
-                      ${spent.toFixed(2)} spent of ${budget.monthly_limit.toFixed(2)}
+                      {formatAmount(spent)} spent of {formatAmount(budget.monthly_limit)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {remaining >= 0
-                        ? `Remaining: $${remaining.toFixed(2)}`
-                        : `Over budget: $${(-remaining).toFixed(2)}`}
+                        ? `Remaining: ${formatAmount(remaining)}`
+                        : `Over budget: ${formatAmount(-remaining)}`}
                     </p>
                   </Card>
                 );
@@ -423,7 +437,7 @@ const Expenses = () => {
                         </div>
 
                         <p className="text-sm">
-                          Spent: ${spent.toFixed(2)}
+                          Spent: {formatAmount(spent)}
                         </p>
                       </Card>
                     );
@@ -462,7 +476,7 @@ const Expenses = () => {
                   <TableCell>{t.payment_method}</TableCell>
                   <TableCell className="text-right">
                     <span className={t.transaction_type === "income" ? "text-emerald-600" : "text-rose-600"}>
-                      ${t.amount.toFixed(2)}
+                      {formatAmount(t.amount)}
                     </span>
                   </TableCell>
                 </TableRow>

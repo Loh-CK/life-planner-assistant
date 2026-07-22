@@ -59,8 +59,12 @@ export const usePlannerItems = (
     fetchItems();
   }, [fetchItems]);
 
-  const addItem = async (data: Partial<PlannerItem>) => {
-    if (!userId || mutationInProgress.current) return;
+  const addItem = async (
+    data: Partial<PlannerItem>
+  ): Promise<{ success: boolean; item?: PlannerItem; error?: string }> => {
+    if (!userId || mutationInProgress.current) {
+      return { success: false, error: "Not ready" };
+    }
     mutationInProgress.current = true;
     setLoading(true);
     setError(null);
@@ -74,9 +78,13 @@ export const usePlannerItems = (
         })
         .select();
       if (insertError) throw insertError;
-      setItems(prev => [...prev, inserted![0] as PlannerItem]);
+      const item = inserted![0] as PlannerItem;
+      setItems(prev => [...prev, item]);
+      return { success: true, item };
     } catch (err: any) {
-      setError(err?.message ?? "Failed to add item");
+      const message = err?.message ?? "Failed to add item";
+      setError(message);
+      return { success: false, error: message };
     } finally {
       setLoading(false);
       mutationInProgress.current = false;

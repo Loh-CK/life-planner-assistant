@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, StickyNote } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { userScopedKey } from "@/lib/userStorage";
 
 interface Note {
   id: string;
@@ -13,15 +15,17 @@ interface Note {
 }
 
 const Notes = () => {
+  const { userId } = useCurrentUser();
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
 
-  // Load notes from localStorage
+  // Load this user's notes from localStorage once their id is known
   useEffect(() => {
+    if (!userId) return;
     try {
-      const stored = JSON.parse(localStorage.getItem("lifePlannerNotes") ?? "{}") as { notes?: Note[] };
+      const stored = JSON.parse(localStorage.getItem(userScopedKey("lifePlannerNotes", userId)) ?? "{}") as { notes?: Note[] };
       const uniqueNotes = Array.from(
         new Map((stored.notes ?? []).filter(note => note?.id).map(note => [note.id, note])).values(),
       );
@@ -29,12 +33,12 @@ const Notes = () => {
     } catch {
       setNotes([]);
     }
-  }, []);
+  }, [userId]);
 
-  // Persist notes
-  useEffect(() => {
-    localStorage.setItem("lifePlannerNotes", JSON.stringify({ notes }));
-  }, [notes]);
+  const persistNotes = (next: Note[]) => {
+    if (!userId) return;
+    localStorage.setItem(userScopedKey("lifePlannerNotes", userId), JSON.stringify({ notes: next }));
+  };
 
   // Update form when selection changes
   useEffect(() => {
@@ -54,20 +58,30 @@ const Notes = () => {
       title: "",
       body: "",
     };
-    setNotes(prev => [newNote, ...prev]);
+    setNotes(prev => {
+      const next = [newNote, ...prev];
+      persistNotes(next);
+      return next;
+    });
     setSelectedId(newNote.id);
   };
 
   const deleteSelected = () => {
     if (!selectedId) return;
-    setNotes(prev => prev.filter(n => n.id !== selectedId));
+    setNotes(prev => {
+      const next = prev.filter(n => n.id !== selectedId);
+      persistNotes(next);
+      return next;
+    });
     setSelectedId(null);
   };
 
   const updateNote = (field: "title" | "body", value: string) => {
-    setNotes(prev =>
-      prev.map(n => (n.id === selectedId ? { ...n, [field]: value } : n))
-    );
+    setNotes(prev => {
+      const next = prev.map(n => (n.id === selectedId ? { ...n, [field]: value } : n));
+      persistNotes(next);
+      return next;
+    });
   };
 
   const selectedNote = notes.find(n => n.id === selectedId);
