@@ -109,7 +109,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 })}
               </div>
             </div>
-            <div className="flex-1 overflow-auto p-4">{children}</div>
+            <div className="relative flex-1 overflow-auto p-4">{children}</div>
           </div>
         </SidebarInset>
         <div className="w-96 min-w-[20rem] max-w-[40rem] resize-x overflow-auto bg-sidebar p-4 hidden md:block">

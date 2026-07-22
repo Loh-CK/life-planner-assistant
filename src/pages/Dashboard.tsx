@@ -364,7 +364,7 @@ const Dashboard = () => {
         <DialogTrigger asChild>
           <Button
             variant="default"
-            className="fixed bottom-8 right-8 rounded-full h-16 w-16 flex items-center justify-center shadow-lg"
+            className="absolute bottom-8 right-8 rounded-full h-16 w-16 flex items-center justify-center shadow-lg"
           >
             <Plus className="h-8 w-8" />
           </Button>

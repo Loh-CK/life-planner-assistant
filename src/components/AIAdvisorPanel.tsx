@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ContextScopeSelect, ContextScope } from "@/components/ContextScopeSelect";
 import { usePlannerItems } from "@/hooks/usePlannerItems";
+import { parseAdvisorMarkdown } from "@/lib/parseAdvisorMarkdown";
 
 interface SettingsData {
   ollama: {
@@ -127,85 +128,6 @@ const AIAdvisorPanel = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const isTableSeparatorRow = (line: string) =>
-    /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/.test(line.trim());
-
-  const splitTableRow = (line: string) =>
-    line
-      .trim()
-      .replace(/^\|/, "")
-      .replace(/\|$/, "")
-      .split("|")
-      .map(cell => cell.trim());
-
-  const parseMarkdown = (text: string) => {
-    // Bold and inline code
-    const withInline = text
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/`([^`]+)`/g, "<code>$1</code>");
-
-    const lines = withInline.split("\n");
-    const out: string[] = [];
-    let listType: "ul" | "ol" | null = null;
-
-    const closeList = () => {
-      if (listType) {
-        out.push(listType === "ul" ? "</ul>" : "</ol>");
-        listType = null;
-      }
-    };
-
-    let i = 0;
-    while (i < lines.length) {
-      const trimmed = lines[i].trim();
-
-      // Markdown table: header row followed by a --- separator row
-      if (trimmed.startsWith("|") && isTableSeparatorRow(lines[i + 1] ?? "")) {
-        closeList();
-        out.push("<table><thead><tr>");
-        splitTableRow(trimmed).forEach(cell => out.push(`<th>${cell}</th>`));
-        out.push("</tr></thead><tbody>");
-        i += 2;
-        while (i < lines.length && lines[i].trim().startsWith("|")) {
-          out.push("<tr>");
-          splitTableRow(lines[i]).forEach(cell => out.push(`<td>${cell}</td>`));
-          out.push("</tr>");
-          i++;
-        }
-        out.push("</tbody></table>");
-        continue;
-      }
-
-      if (/^[-*]\s+/.test(trimmed)) {
-        if (listType !== "ul") {
-          closeList();
-          out.push("<ul>");
-          listType = "ul";
-        }
-        out.push(`<li>${trimmed.replace(/^[-*]\s+/, "")}</li>`);
-        i++;
-        continue;
-      }
-
-      if (/^\d+\.\s+/.test(trimmed)) {
-        if (listType !== "ol") {
-          closeList();
-          out.push("<ol>");
-          listType = "ol";
-        }
-        out.push(`<li>${trimmed.replace(/^\d+\.\s+/, "")}</li>`);
-        i++;
-        continue;
-      }
-
-      closeList();
-      if (trimmed) out.push(`<p>${trimmed}</p>`);
-      i++;
-    }
-    closeList();
-    return out.join("");
-  };
-
   const sendMessage = async (content: string, targetScope: string = scope) => {
     if (!content.trim()) return;
     const newMessages: Message[] = [...messages, { role: "user", content }];
@@ -289,7 +211,7 @@ const AIAdvisorPanel = () => {
               {msg.role === "assistant" ? (
                 <div
                   className="advisor-markdown max-w-[85%] rounded-lg p-2 break-words overflow-x-auto bg-card text-card-foreground"
-                  dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.content) }}
+                  dangerouslySetInnerHTML={{ __html: parseAdvisorMarkdown(msg.content) }}
                 />
               ) : (
                 <div className="max-w-[85%] rounded-lg p-2 break-words whitespace-pre-wrap bg-primary text-primary-foreground">
